@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estuda ENADE — Protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3EEE6; --paper: #FFFDF8; --ink: #1C1814; --muted: #6E655B;
+    --orange: #EC6A3C; --yellow: #F6C445; --green: #6CC48A; --blue: #8DB2F2; --pink: #F49BC1; --lilac: #BFA6F2;
+    --sh: 4px 4px 0 var(--ink); --r: 14px;
+    --title: "Bricolage Grotesque", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "DM Sans", system-ui, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  h1, h2, h3, .t { font-family: var(--title); font-weight: 800; letter-spacing: -.01em; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  svg.i { width: 18px; height: 18px; flex: none; }
+
+  /* ---------- topo: seletor de modo ---------- */
+  .top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; padding: 16px 24px; border-bottom: 3px solid var(--ink); background: var(--paper); }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--title); font-weight: 800; font-size: 20px; }
+  .brand small { font-family: "DM Sans"; font-weight: 500; font-size: 13px; color: var(--muted); }
+  .logo { width: 34px; height: 34px; border: 2.5px solid var(--ink); border-radius: 10px; background: var(--orange); color: #fff; display: grid; place-items: center; box-shadow: 2px 2px 0 var(--ink); font-size: 18px; }
+  .seg { display: flex; border: 2.5px solid var(--ink); border-radius: 14px; overflow: hidden; box-shadow: var(--sh); background: var(--paper); }
+  .seg button { border: 0; background: none; padding: 10px 18px; font-weight: 700; display: flex; gap: 8px; align-items: center; }
+  .seg button + button { border-left: 2.5px solid var(--ink); }
+  .seg button.on { background: var(--yellow); }
+  .legenda { width: 100%; text-align: center; color: var(--muted); font-size: 14px; padding: 14px 16px 0; }
+  .legenda b { color: var(--ink); }
+
+  /* ---------- palco e moldura do dispositivo ---------- */
+  .stage { display: flex; justify-content: center; padding: 20px 16px 48px; }
+  .device { width: min(1180px, 100%); height: 720px; background: var(--paper); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 8px 8px 0 var(--ink); overflow: hidden; display: flex; flex-direction: column; transition: width .35s ease, border-radius .35s ease; }
+  .device.app, .device.webapp { width: 390px; max-width: 100%; height: 800px; border-radius: 40px; }
+  .statusbar { display: none; justify-content: space-between; padding: 12px 26px 6px; font-weight: 700; font-size: 14px; }
+  .device.app .statusbar, .device.webapp .statusbar { display: flex; }
+  .chrome { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 2.5px solid var(--ink); background: var(--bg); }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: var(--orange); }
+  .dots i:nth-child(2) { background: var(--yellow); } .dots i:nth-child(3) { background: var(--green); }
+  .url { flex: 1; max-width: 460px; background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--muted); }
+  .device.webapp .dots { display: none; }
+  .device.webapp .url { text-align: center; max-width: none; }
+  .device.app .chrome { display: none; }
+  .screen-area { flex: 1; min-height: 0; position: relative; }
+  .device.app .portal, .device:not(.app) .app { display: none; }
+
+  /* ---------- componentes comuns ---------- */
+  .card { background: var(--paper); border: 2.5px solid var(--ink); border-radius: var(--r); box-shadow: var(--sh); padding: 14px 16px; }
+  .click { cursor: pointer; transition: transform .1s, box-shadow .1s; }
+  .click:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+  .btn { border: 2.5px solid var(--ink); border-radius: 12px; background: var(--paper); padding: 10px 16px; font-weight: 700; box-shadow: 3px 3px 0 var(--ink); display: inline-flex; gap: 8px; align-items: center; justify-content: center; }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  .btn.pri { background: var(--orange); color: #fff; }
+  .btn.full { width: 100%; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .tag { display: inline-block; border: 2px solid var(--ink); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .bd { background: var(--blue); } .es { background: var(--pink); } .rd { background: var(--green); } .al { background: var(--yellow); }
+  .meter { height: 14px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: var(--paper); }
+  .meter i { display: block; height: 100%; border-right: 2px solid var(--ink); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  input, select, textarea { font: inherit; width: 100%; border: 2.5px solid var(--ink); border-radius: 12px; background: var(--paper); padding: 10px 12px; }
+  .hidden { display: none !important; }
+  .accent { color: var(--orange); }
+
+  /* ================= PORTAL DO PROFESSOR (desktop + webapp) ================= */
+  .portal { position: absolute; inset: 0; container-type: inline-size; }
+  .p-shell { display: grid; grid-template-columns: 230px 1fr; height: 100%; }
+  .p-side { border-right: 3px solid var(--ink); padding: 18px 14px; display: flex; flex-direction: column; gap: 6px; background: var(--paper); }
+  .p-logo { font-family: var(--title); font-weight: 800; font-size: 20px; display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .p-logo .logo { width: 30px; height: 30px; font-size: 15px; }
+  .turma { border: 2.5px solid var(--ink); border-radius: 12px; padding: 8px 12px; background: var(--lilac); font-weight: 700; font-size: 14px; margin-bottom: 12px; box-shadow: 3px 3px 0 var(--ink); }
+  .turma small { display: block; font-weight: 500; font-size: 12px; }
+  .p-side a { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 2.5px solid transparent; font-weight: 700; cursor: pointer; }
+  .p-side a.on { border-color: var(--ink); background: var(--yellow); box-shadow: 3px 3px 0 var(--ink); }
+  .p-user { margin-top: auto; display: flex; gap: 10px; align-items: center; border-top: 2.5px solid var(--ink); padding-top: 14px; font-weight: 700; font-size: 14px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--pink); display: grid; place-items: center; font-weight: 800; font-size: 14px; flex: none; }
+  .p-mtop { display: none; }
+  .p-main { overflow-y: auto; padding: 28px 32px 40px; background: var(--bg); }
+  .p-view { display: none; flex-direction: column; gap: 20px; max-width: 980px; }
+  .p-view.on { display: flex; }
+  .p-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .p-head h1 { font-size: 34px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat .n { font-family: var(--title); font-weight: 800; font-size: 34px; line-height: 1.1; }
+  .grid2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .code { font-family: var(--title); font-size: 30px; font-weight: 800; letter-spacing: .08em; border: 2.5px dashed var(--ink); border-radius: 12px; padding: 8px; text-align: center; background: var(--paper); margin: 10px 0; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { border: 2.5px solid var(--ink); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 14px; background: var(--paper); }
+  .chip.on { background: var(--ink); color: var(--paper); }
+  .qrow { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; }
+  .qrow p { font-weight: 500; }
+  .status { font-size: 13px; font-weight: 700; }
+  .status.pub { color: #2e8a4f; } .status.ras { color: var(--muted); } .status.sin { color: var(--orange); }
+  .alts { display: flex; flex-direction: column; gap: 8px; }
+  .alts label { display: flex; gap: 10px; align-items: center; }
+  .alts input[type=radio] { width: 20px; height: 20px; accent-color: var(--orange); flex: none; }
+  .tbl .tr { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 10px; padding: 10px 4px; border-bottom: 2px solid var(--ink); align-items: center; font-size: 14px; }
+  .tbl .tr:last-child { border-bottom: 0; }
+  .tbl .th { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+  /* portal responsivo: mesma marcação, reorganizada quando a moldura fica estreita */
+  @container (max-width: 720px) {
+    .p-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    .p-mtop { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 3px solid var(--ink); background: var(--paper); }
+    .p-mtop .p-logo { margin: 0; font-size: 18px; }
+    .p-side { order: 3; flex-direction: row; border-right: 0; border-top: 3px solid var(--ink); padding: 8px; gap: 4px; }
+    .p-side .p-logo, .p-side .turma, .p-side .p-user { display: none; }
+    .p-side a { flex: 1; flex-direction: column; gap: 2px; font-size: 11px; padding: 6px 2px; }
+    .p-main { padding: 18px 16px 28px; }
+    .p-head h1 { font-size: 26px; }
+    .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat .n { font-size: 26px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .qrow { grid-template-columns: 1fr auto; }
+    .qrow .status { grid-column: 1 / -1; }
+    .tbl .tr { grid-template-columns: 1.4fr 1fr 1fr; }
+    .tbl .tr > :nth-child(3) { display: none; }
+  }
+
+  /* ================= APP DO ALUNO ================= */
+  .screen-area > .app { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .a-screen { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .a-screen.on { display: flex; }
+  .a-bar { padding: 12px 18px; border-bottom: 3px solid var(--ink); display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; }
+  .a-bar .back { cursor: pointer; }
+  .a-content { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; background: var(--bg); }
+  .a-tabs { display: flex; border-top: 3px solid var(--ink); background: var(--paper); padding: 8px 8px 18px; }
+  .a-tabs a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 700; padding: 6px; border-radius: 12px; border: 2.5px solid transparent; cursor: pointer; }
+  .a-tabs a.on { background: var(--yellow); border-color: var(--ink); }
+  .hero { background: var(--orange); color: #fff; border: 2.5px solid var(--ink); border-radius: 20px; padding: 18px; box-shadow: var(--sh); }
+  .hero h2 { font-size: 26px; }
+  .act { display: flex; gap: 12px; align-items: center; }
+  .act .ic { width: 44px; height: 44px; border: 2.5px solid var(--ink); border-radius: 12px; display: grid; place-items: center; flex: none; }
+  .enun { background: var(--paper); border: 2.5px solid var(--ink); border-radius: var(--r); padding: 14px; line-height: 1.45; }
+  .opt { width: 100%; text-align: left; border: 2.5px solid var(--ink); border-radius: 12px; background: var(--paper); padding: 10px 12px; font-weight: 500; display: flex; gap: 10px; align-items: center; }
+  .opt b { width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 8px; display: grid; place-items: center; flex: none; font-size: 13px; }
+  .opt.sel { background: var(--yellow); box-shadow: 3px 3px 0 var(--ink); }
+  .opt.ok { background: var(--green); }
+  .opt.bad { background: var(--pink); text-decoration: line-through; }
+  .timer { background: var(--yellow); border: 2.5px solid var(--ink); border-radius: 10px; padding: 3px 10px; font-variant-numeric: tabular-nums; }
+  .big { font-family: var(--title); font-weight: 800; font-size: 48px; line-height: 1; }
+  .center { text-align: center; }
+  .dotsnav { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dotsnav i { width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 8px; font-style: normal; font-size: 12px; font-weight: 700; display: grid; place-items: center; background: var(--paper); }
+  .dotsnav i.f { background: var(--blue); } .dotsnav i.c { background: var(--yellow); }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(120px); background: var(--ink); color: var(--paper); padding: 10px 18px; border-radius: 12px; font-weight: 700; transition: transform .25s; z-index: 9; }
+  .toast.show { transform: translateX(-50%); }
+  @media (max-width: 520px) { .seg button { padding: 9px 12px; } .brand small { display: none; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-desk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><span class="logo">e</span> Estuda ENADE <small>protótipo de baixa fidelidade · dados fictícios</small></div>
+  <div class="seg" id="seg">
+    <button data-modo="desktop" class="on"><svg class="i"><use href="#i-desk"/></svg>Desktop</button>
+    <button data-modo="app"><svg class="i"><use href="#i-phone"/></svg>App</button>
+    <button data-modo="webapp"><svg class="i"><use href="#i-globe"/></svg>Webapp</button>
+  </div>
+</header>
+<p class="legenda" id="legenda"></p>
+
+<main class="stage">
+  <div class="device desktop" id="device">
+    <div class="statusbar"><span>9:41</span><span>●●● 5G ▮</span></div>
+    <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="url">professor.estudaenade.app</div></div>
+
+    <div class="screen-area">
+
+      <!-- ================= PORTAL DO PROFESSOR ================= -->
+      <div class="portal">
+        <div class="p-shell">
+          <div class="p-mtop">
+            <div class="p-logo"><span class="logo">e</span>estuda<span class="accent">.enade</span></div>
+            <span class="tag" style="background:var(--lilac)">ADS · Turma A</span>
+          </div>
+
+          <nav class="p-side">
+            <div class="p-logo"><span class="logo">e</span>estuda<span class="accent">.enade</span></div>
+            <div class="turma">ADS · Turma A <small>32 alunos · 2026.2</small></div>
+            <a data-v="inicio" class="on"><svg class="i"><use href="#i-home"/></svg>Início</a>
+            <a data-v="questoes"><svg class="i"><use href="#i-list"/></svg>Questões</a>
+            <a data-v="atividades"><svg class="i"><use href="#i-clip"/></svg>Atividades</a>
+            <a data-v="resultados"><svg class="i"><use href="#i-chart"/></svg>Resultados</a>
+            <div class="p-user"><span class="avatar">PS</span>Prof. Silva</div>
+          </nav>
+
+          <section class="p-main">
+
+            <!-- Início -->
+            <div class="p-view on" id="v-inicio">
+              <div class="p-head"><h1>Bom dia, <span class="accent">Prof. Silva</span></h1></div>
+              <p class="muted" style="margin-top:-12px">24 de 32 alunos já fizeram o Simulado 1.</p>
+              <div class="stats">
+                <div class="card stat" style="background:var(--yellow)"><div class="n">32</div>alunos</div>
+                <div class="card stat" style="background:var(--blue)"><div class="n">128</div>questões no banco</div>
+                <div class="card stat" style="background:var(--green)"><div class="n">2</div>atividades abertas</div>
+                <div class="card stat" style="background:var(--pink)"><div class="n">68%</div>média da turma</div>
+              </div>
+              <div class="grid2">
+                <div class="stack">
+                  <span class="label">Atividades recentes</span>
+                  <div class="card click act" data-v="resultados">
+                    <span class="ic" style="background:var(--orange);color:#fff"><svg class="i"><use href="#i-clip"/></svg></span>
+                    <div style="flex:1"><h3>Simulado 1</h3><p class="muted">10 questões · 30 min · 24/32 concluíram</p></div>
+                  </div>
+                  <div class="card click act" data-v="resultados">
+                    <span class="ic bd"><svg class="i"><use href="#i-list"/></svg></span>
+                    <div style="flex:1"><h3>Lista: Banco de Dados</h3><p class="muted">5 questões · sem tempo · 18/32 concluíram</p></div>
+                  </div>
+                </div>
+                <div class="card" style="background:var(--lilac)">
+                  <h3>Convide alunos</h3>
+                  <p class="muted" style="color:var(--ink)">Compartilhe o código ou o link da turma.</p>
+                  <div class="code">ADS-7K2</div>
+                  <button class="btn full" data-toast="Código copiado">Copiar link de convite</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Banco de questões -->
+            <div class="p-view" id="v-questoes">
+              <div class="p-head"><h1>Banco de questões</h1><button class="btn pri" data-v="nova">+ Nova questão</button></div>
+              <div class="chips">
+                <span class="chip on">Todas</span><span class="chip">Minhas</span><span class="chip">Banco de Dados</span><span class="chip">Eng. Software</span><span class="chip">Redes</span><span class="chip">2024</span><span class="chip">2021</span>
+              </div>
+              <div class="stack">
+                <div class="card qrow"><div><span class="tag bd">Banco de Dados</span> <span class="muted">ENADE 2021 · ADS</span><p>Qual forma normal elimina dependências transitivas?</p></div><span class="muted">Você</span><span class="status pub">● Publicada</span></div>
+                <div class="card qrow"><div><span class="tag es">Eng. Software</span> <span class="muted">ENADE 2024 · ADS</span><p>No Scrum, quem é responsável por priorizar o backlog do produto?</p></div><span class="muted">Prof. Lima</span><span class="status sin">⚑ Sinalizada</span></div>
+                <div class="card qrow"><div><span class="tag rd">Redes</span> <span class="muted">ENADE 2021 · ADS</span><p>Em qual camada do modelo OSI atua o protocolo TCP?</p></div><span class="muted">Você</span><span class="status ras">○ Rascunho</span></div>
+                <div class="card qrow"><div><span class="tag al">Algoritmos</span> <span class="muted">ENADE 2024 · ADS</span><p>Qual a complexidade da busca binária em um vetor ordenado?</p></div><span class="muted">Prof. Costa</span><span class="status pub">● Publicada</span></div>
+              </div>
+            </div>
+
+            <!-- Nova questão -->
+            <div class="p-view" id="v-nova">
+              <div class="p-head"><h1>Nova questão</h1><button class="btn" data-v="questoes">Cancelar</button></div>
+              <div class="grid2">
+                <div class="card stack">
+                  <span class="label">Enunciado</span>
+                  <textarea rows="3">Em um banco de dados relacional, qual forma normal elimina dependências transitivas?</textarea>
+                  <span class="label">Alternativas · marque o gabarito</span>
+                  <div class="alts">
+                    <label><input type="radio" name="g"><input value="1FN"></label>
+                    <label><input type="radio" name="g"><input value="2FN"></label>
+                    <label><input type="radio" name="g" checked><input value="3FN"></label>
+                    <label><input type="radio" name="g"><input value="BCNF"></label>
+                    <label><input type="radio" name="g"><input value="4FN"></label>
+                  </div>
+                  <span class="label">Explicação</span>
+                  <textarea rows="2">A 3FN exige que nenhum atributo não-chave dependa de outro atributo não-chave.</textarea>
+                </div>
+                <div class="card stack" style="background:var(--yellow)">
+                  <span class="label" style="color:var(--ink)">Curso</span><select><option>Análise e Desenv. de Sistemas</option></select>
+                  <span class="label" style="color:var(--ink)">Ano</span><select><option>2021</option><option>2024</option></select>
+                  <span class="label" style="color:var(--ink)">Tema</span><select><option>Banco de Dados</option><option>Eng. Software</option><option>Redes</option></select>
+                  <button class="btn full" data-toast="Rascunho salvo">Salvar rascunho</button>
+                  <button class="btn pri full" data-toast="Questão publicada no banco" data-v="questoes">Revisar e publicar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Atividades -->
+            <div class="p-view" id="v-atividades">
+              <div class="p-head"><h1>Atividades</h1><button class="btn pri" data-toast="Fora deste protótipo">+ Nova atividade</button></div>
+              <div class="card act">
+                <span class="ic" style="background:var(--orange);color:#fff"><svg class="i"><use href="#i-clip"/></svg></span>
+                <div style="flex:1"><h3>Simulado 1</h3><p class="muted">10 questões · 30 min · 1 tentativa</p></div>
+                <span class="tag" style="background:var(--green)">Publicada</span>
+              </div>
+              <div class="card act">
+                <span class="ic bd"><svg class="i"><use href="#i-list"/></svg></span>
+                <div style="flex:1"><h3>Lista: Banco de Dados</h3><p class="muted">5 questões · sem tempo · novas tentativas</p></div>
+                <span class="tag" style="background:var(--green)">Publicada</span>
+              </div>
+              <div class="card act">
+                <span class="ic es"><svg class="i"><use href="#i-list"/></svg></span>
+                <div style="flex:1"><h3>Simulado 2</h3><p class="muted">20 questões · 60 min · 2 tentativas</p></div>
+                <span class="tag">Rascunho</span>
+              </div>
+            </div>
+
+            <!-- Resultados -->
+            <div class="p-view" id="v-resultados">
+              <div class="p-head"><h1>Resultados · Simulado 1</h1></div>
+              <div class="grid2">
+                <div class="card stack">
+                  <span class="label">Acertos da turma por tema</span>
+                  <div><p class="muted">Banco de Dados · 78%</p><div class="meter"><i class="bd" style="width:78%"></i></div></div>
+                  <div><p class="muted">Algoritmos · 71%</p><div class="meter"><i class="al" style="width:71%"></i></div></div>
+                  <div><p class="muted">Eng. Software · 62%</p><div class="meter"><i class="es" style="width:62%"></i></div></div>
+                  <div><p class="muted">Redes · 41%</p><div class="meter"><i class="rd" style="width:41%"></i></div></div>
+                </div>
+                <div class="card" style="background:var(--green)">
+                  <span class="label" style="color:var(--ink)">Média da turma</span>
+                  <div class="big" style="margin:8px 0">6,8</div>
+                  <p>24 de 32 concluíram · tempo médio 23 min</p>
+                </div>
+              </div>
+              <div class="card tbl">
+                <div class="tr th"><span>Aluno</span><span>Nota</span><span>Tempo</span><span>Tentativas</span></div>
+                <div class="tr"><span><b>Ana Souza</b></span><span>9/10</span><span>21 min</span><span>1</span></div>
+                <div class="tr"><span><b>Bruno Lima</b></span><span>7/10</span><span>28 min</span><span>1</span></div>
+                <div class="tr"><span><b>Carla Dias</b></span><span>5/10</span><span>30 min</span><span>1</span></div>
+                <div class="tr"><span><b>Diego Melo</b></span><span class="muted">—</span><span class="muted">—</span><span class="muted">não iniciou</span></div>
+              </div>
+            </div>
+
+          </section>
+        </div>
+      </div>
+
+      <!-- ================= APP DO ALUNO ================= -->
+      <div class="app">
+
+        <!-- Entrar na turma -->
+        <section class="a-screen" id="a-entrar">
+          <div class="a-content" style="justify-content:center">
+            <div class="hero" style="background:var(--lilac);color:var(--ink)">
+              <span class="logo" style="width:48px;height:48px;font-size:24px">e</span>
+              <h2 style="margin-top:12px">Bora estudar pro ENADE?</h2>
+              <p>Entre na turma com o código do seu professor.</p>
+            </div>
+            <input placeholder="Código da turma" value="ADS-7K2" style="font-weight:700;letter-spacing:.08em;text-align:center">
+            <button class="btn pri full" onclick="ir('inicio')">Entrar na turma</button>
+          </div>
+        </section>
+
+        <!-- Início -->
+        <section class="a-screen" id="a-inicio">
+          <div class="a-bar"><span class="t" style="font-size:20px">Oi, <span class="accent">Ana</span></span><span class="tag" style="background:var(--lilac)">ADS · Turma A</span></div>
+          <div class="a-content">
+            <div class="hero">
+              <span class="label" style="color:#fff">Seu desempenho</span>
+              <h2>68% de acertos</h2>
+              <p>42 questões respondidas · melhor tema: Banco de Dados</p>
+            </div>
+            <span class="label">Atividades publicadas</span>
+            <div class="card click act" onclick="ir('atividade')">
+              <span class="ic" style="background:var(--yellow)"><svg class="i"><use href="#i-clip"/></svg></span>
+              <div><h3>Simulado 1</h3><p class="muted">10 questões · 30 min · 1 tentativa</p></div>
+            </div>
+            <div class="card click act" onclick="ir('atividade')">
+              <span class="ic bd"><svg class="i"><use href="#i-list"/></svg></span>
+              <div><h3>Lista: Banco de Dados</h3><p class="muted">5 questões · sem tempo</p></div>
+            </div>
+            <span class="label">Prática livre</span>
+            <div class="card click act" onclick="ir('filtros')" style="background:var(--green)">
+              <span class="ic" style="background:var(--paper)"><svg class="i"><use href="#i-play"/></svg></span>
+              <div><h3>Praticar no banco</h3><p>Filtre por curso, ano e tema</p></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Filtros da prática livre -->
+        <section class="a-screen" id="a-filtros">
+          <div class="a-bar"><span class="back" onclick="ir('inicio')">← Prática livre</span></div>
+          <div class="a-content">
+            <span class="label">Curso</span>
+            <select><option>Análise e Desenv. de Sistemas</option></select>
+            <span class="label">Ano</span>
+            <div class="chips"><span class="chip on">Todos</span><span class="chip">2024</span><span class="chip">2021</span></div>
+            <span class="label">Tema</span>
+            <div class="chips"><span class="chip on">Todos</span><span class="chip">Banco de Dados</span><span class="chip">Eng. Software</span><span class="chip">Redes</span></div>
+            <div class="card" style="background:var(--yellow)"><b>24 questões</b> encontradas</div>
+            <button class="btn pri full" onclick="ir('pratica')">Começar a praticar</button>
+          </div>
+        </section>
+
+        <!-- Questão com feedback imediato -->
+        <section class="a-screen" id="a-pratica">
+          <div class="a-bar"><span class="back" onclick="ir('filtros')">← 1 de 24</span><span class="tag bd">Banco de Dados</span></div>
+          <div class="a-content">
+            <p class="muted">ENADE 2021 · ADS</p>
+            <div class="enun">Em um banco de dados relacional, qual forma normal elimina <b>dependências transitivas</b> entre atributos não-chave?</div>
+            <div class="stack opts" data-certa="2">
+              <button class="opt"><b>A</b>Primeira forma normal (1FN)</button>
+              <button class="opt"><b>B</b>Segunda forma normal (2FN)</button>
+              <button class="opt"><b>C</b>Terceira forma normal (3FN)</button>
+              <button class="opt"><b>D</b>Forma normal de Boyce-Codd</button>
+              <button class="opt"><b>E</b>Quarta forma normal (4FN)</button>
+            </div>
+            <button class="btn pri full" onclick="responder(this)">Responder</button>
+            <div class="feedback hidden stack">
+              <div class="card" style="background:var(--green)">
+                <h3>Gabarito: C</h3>
+                <p>A 3FN exige que nenhum atributo não-chave dependa de outro atributo não-chave.</p>
+              </div>
+              <div class="row">
+                <button class="btn" data-toast="Questão sinalizada para revisão">⚑ Sinalizar</button>
+                <button class="btn pri" onclick="ir('pratica')">Próxima →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Detalhes da atividade -->
+        <section class="a-screen" id="a-atividade">
+          <div class="a-bar"><span class="back" onclick="ir('inicio')">← Simulado 1</span></div>
+          <div class="a-content">
+            <div class="row">
+              <div class="card center" style="background:var(--blue)"><div class="big" style="font-size:30px">10</div>questões</div>
+              <div class="card center" style="background:var(--yellow)"><div class="big" style="font-size:30px">30</div>minutos</div>
+              <div class="card center" style="background:var(--pink)"><div class="big" style="font-size:30px">1</div>tentativa</div>
+            </div>
+            <div class="card">
+              <h3>Antes de começar</h3>
+              <p class="muted">O tempo começa quando você tocar em Iniciar. Quando chegar a zero, suas respostas marcadas são enviadas. O gabarito aparece depois que você terminar.</p>
+            </div>
+            <button class="btn pri full" onclick="iniciar()">Iniciar simulado</button>
+          </div>
+        </section>
+
+        <!-- Atividade em andamento -->
+        <section class="a-screen" id="a-tentativa">
+          <div class="a-bar"><span>Questão 3 de 10</span><span class="timer" id="timer">30:00</span></div>
+          <div class="a-content">
+            <div class="dotsnav"><i class="f">1</i><i class="f">2</i><i class="c">3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i>10</i></div>
+            <div class="enun">No Scrum, quem é responsável por <b>priorizar o backlog</b> do produto?</div>
+            <div class="stack opts">
+              <button class="opt"><b>A</b>Scrum Master</button>
+              <button class="opt"><b>B</b>Product Owner</button>
+              <button class="opt"><b>C</b>Time de desenvolvimento</button>
+              <button class="opt"><b>D</b>Stakeholders</button>
+              <button class="opt"><b>E</b>Gerente de projeto</button>
+            </div>
+            <div class="row"><button class="btn">← Anterior</button><button class="btn">Próxima →</button></div>
+            <button class="btn pri full" onclick="ir('resultado')">Enviar respostas</button>
+          </div>
+        </section>
+
+        <!-- Resultado -->
+        <section class="a-screen" id="a-resultado">
+          <div class="a-bar"><span>Simulado 1 · concluído</span></div>
+          <div class="a-content">
+            <div class="hero center" style="background:var(--green);color:var(--ink)">
+              <div class="big">7/10</div>
+              <p>Mandou bem! Tempo usado: 22 min</p>
+            </div>
+            <span class="label">Por tema</span>
+            <div><p class="muted">Banco de Dados · 80%</p><div class="meter"><i class="bd" style="width:80%"></i></div></div>
+            <div><p class="muted">Eng. Software · 60%</p><div class="meter"><i class="es" style="width:60%"></i></div></div>
+            <button class="btn full" data-toast="Fora deste protótipo">Ver gabarito e explicações</button>
+            <button class="btn pri full" onclick="ir('inicio')">Voltar ao início</button>
+          </div>
+        </section>
+
+        <!-- Meu desempenho -->
+        <section class="a-screen" id="a-desempenho">
+          <div class="a-bar"><span class="t" style="font-size:20px">Meu desempenho</span></div>
+          <div class="a-content">
+            <div class="row">
+              <div class="card center" style="background:var(--yellow)"><div class="big" style="font-size:34px">68%</div>acertos</div>
+              <div class="card center" style="background:var(--blue)"><div class="big" style="font-size:34px">42</div>questões</div>
+            </div>
+            <span class="label">Por tema</span>
+            <div><p class="muted">Banco de Dados · 80%</p><div class="meter"><i class="bd" style="width:80%"></i></div></div>
+            <div><p class="muted">Algoritmos · 70%</p><div class="meter"><i class="al" style="width:70%"></i></div></div>
+            <div><p class="muted">Eng. Software · 60%</p><div class="meter"><i class="es" style="width:60%"></i></div></div>
+            <div><p class="muted">Redes · 45%</p><div class="meter"><i class="rd" style="width:45%"></i></div></div>
+            <span class="label">Tentativas</span>
+            <div class="card act"><span class="ic" style="background:var(--yellow)"><svg class="i"><use href="#i-clip"/></svg></span><div><h3>Simulado 1</h3><p class="muted">7/10 · tentativa 1</p></div></div>
+          </div>
+        </section>
+
+        <nav class="a-tabs" id="tabs">
+          <a data-a="inicio"><svg class="i"><use href="#i-home"/></svg>Início</a>
+          <a data-a="filtros"><svg class="i"><use href="#i-play"/></svg>Praticar</a>
+          <a data-a="desempenho"><svg class="i"><use href="#i-chart"/></svg>Desempenho</a>
+        </nav>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ---------- modo: desktop / app / webapp ---------- */
+  const device = document.getElementById('device');
+  const legendas = {
+    desktop: '<b>Desktop</b> · portal web do professor em tela grande',
+    app: '<b>App</b> · aplicativo do aluno (iOS e Android)',
+    webapp: '<b>Webapp</b> · o mesmo portal do professor, responsivo no navegador do celular'
+  };
+
+  function modo(m) {
+    device.className = 'device ' + m;
+    document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.modo === m));
+    document.getElementById('legenda').innerHTML = legendas[m];
+    try { localStorage.setItem('modo', m); } catch (e) {}
+  }
+  document.querySelectorAll('#seg button').forEach(b => b.onclick = () => modo(b.dataset.modo));
+
+  /* ---------- portal do professor ---------- */
+  function verPortal(v) {
+    document.querySelectorAll('.p-view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+    const menu = v === 'nova' ? 'questoes' : v;
+    document.querySelectorAll('.p-side a').forEach(a => a.classList.toggle('on', a.dataset.v === menu));
+    document.querySelector('.p-main').scrollTop = 0;
+  }
+  document.querySelectorAll('.portal [data-v]').forEach(el => el.addEventListener('click', () => verPortal(el.dataset.v)));
+
+  /* ---------- app do aluno ---------- */
+  let relogio;
+  function ir(id) {
+    clearInterval(relogio);
+    document.querySelectorAll('.a-screen').forEach(s => s.classList.toggle('on', s.id === 'a-' + id));
+    document.getElementById('tabs').classList.toggle('hidden', id === 'entrar' || id === 'tentativa');
+    document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('on', a.dataset.a === id));
+    if (id === 'pratica') resetar(document.querySelector('#a-pratica'));
+  }
+  document.querySelectorAll('#tabs a').forEach(a => a.onclick = () => ir(a.dataset.a));
+
+  function iniciar() {
+    ir('tentativa');
+    let s = 30 * 60;
+    const t = document.getElementById('timer');
+    t.textContent = '30:00';
+    relogio = setInterval(() => {
+      s--;
+      t.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+      if (s <= 0) ir('resultado');
+    }, 1000);
+  }
+
+  document.querySelectorAll('.opts').forEach(grupo =>
+    grupo.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      if (grupo.dataset.travado) return;
+      grupo.querySelectorAll('.opt').forEach(o => o.classList.remove('sel'));
+      b.classList.add('sel');
+    }));
+
+  function responder(btn) {
+    const grupo = btn.previousElementSibling;
+    const opts = [...grupo.querySelectorAll('.opt')];
+    const sel = opts.findIndex(o => o.classList.contains('sel'));
+    if (sel < 0) return toast('Escolha uma alternativa');
+    grupo.dataset.travado = 1;
+    opts[+grupo.dataset.certa].classList.add('ok');
+    if (sel !== +grupo.dataset.certa) opts[sel].classList.add('bad');
+    btn.classList.add('hidden');
+    btn.nextElementSibling.classList.remove('hidden');
+  }
+
+  function resetar(tela) {
+    const grupo = tela.querySelector('.opts');
+    delete grupo.dataset.travado;
+    grupo.querySelectorAll('.opt').forEach(o => o.className = 'opt');
+    tela.querySelector('.btn.pri.full').classList.remove('hidden');
+    tela.querySelector('.feedback').classList.add('hidden');
+  }
+
+  /* ---------- avisos de protótipo ---------- */
+  let tId;
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(tId);
+    tId = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+  document.querySelectorAll('[data-toast]').forEach(b => b.addEventListener('click', () => toast(b.dataset.toast)));
+  document.querySelectorAll('.chips').forEach(g => g.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    g.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+    c.classList.add('on');
+  }));
+
+  let inicial = 'desktop';
+  try { inicial = localStorage.getItem('modo') || inicial; } catch (e) {}
+  modo(inicial);
+  ir('entrar');
+</script>
+</body>
+</html>
