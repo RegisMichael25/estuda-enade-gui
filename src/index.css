@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #F3EEE6;
+  --color-paper: #FFFDF8;
+  --color-ink: #1C1814;
+  --color-muted: #6E655B;
+  --color-orange: #EC6A3C;
+  --color-yellow: #F6C445;
+  --color-green: #6CC48A;
+  --color-blue: #8DB2F2;
+  --color-pink: #F49BC1;
+  --color-lilac: #BFA6F2;
+
+  --font-title: "Bricolage Grotesque", system-ui, -apple-system, sans-serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+
+  --shadow-brutal: 4px 4px 0px #1C1814;
+  --shadow-brutal-sm: 2px 2px 0px #1C1814;
+  --shadow-brutal-md: 3px 3px 0px #1C1814;
+  --shadow-brutal-lg: 6px 6px 0px #1C1814;
+  --shadow-brutal-xl: 8px 8px 0px #1C1814;
+}
+
+:root {
+  --ink: #1C1814;
+  --paper: #FFFDF8;
+  --bg: #F3EEE6;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, .font-title {
+  font-family: var(--font-title);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Custom interactive brutalist buttons & cards */
+.btn-brutal {
+  border: 2.5px solid var(--color-ink);
+  box-shadow: var(--shadow-brutal-md);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.btn-brutal:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-brutal);
+}
+
+.btn-brutal:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-brutal-sm);
+}
+
+.card-brutal {
+  background-color: var(--color-paper);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 14px;
+  box-shadow: var(--shadow-brutal);
+}
+
+.card-brutal-interactive {
+  background-color: var(--color-paper);
+  border: 2.5px solid var(--color-ink);
+  border-radius: 14px;
+  box-shadow: var(--shadow-brutal);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  cursor: pointer;
+}
+
+.card-brutal-interactive:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-brutal-lg);
+}
+
+.card-brutal-interactive:active {
+  transform: translate(1px, 1px);
+  box-shadow: var(--shadow-brutal-sm);
+}
+
