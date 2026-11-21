@@ -880,7 +880,7 @@ export interface components {
             duracaoMinutos?: number | null;
             /**
              * Format: int32
-             * @description Nulo = tentativas ilimitadas; 1 = sem novas tentativas.
+             * @description LISTA: de 1 a 5, ou nulo para ilimitadas. SIMULADO: 1 ou 2, nunca nulo. Fora disso responde `422 TENTATIVAS_INVALIDAS`.
              */
             maxTentativas?: number | null;
             /** @description Questões publicadas, na ordem em que aparecem para o aluno. */
