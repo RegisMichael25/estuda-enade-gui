@@ -17,7 +17,7 @@ import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { Combobox } from '@/components/ui/Combobox';
 import { useToast } from '@/components/ui/Toast';
 
 export function ProfessorLayout() {
@@ -157,22 +157,19 @@ export function ProfessorLayout() {
           </div>
 
           {turmas.length > 0 ? (
-            <div className="relative">
-              <select
-                value={turmaSelecionada?.id || ''}
-                onChange={(e) => {
-                  const encontrada = turmas.find((t) => t.id === e.target.value);
-                  if (encontrada) handleTrocarTurma(encontrada);
-                }}
-                className="w-full bg-paper border-2 border-ink rounded-lg px-2.5 py-1.5 text-xs font-bold text-ink cursor-pointer focus:outline-none"
-              >
-                {turmas.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nome} {t.periodo ? `(${t.periodo})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Combobox
+              tamanho="sm"
+              placeholder="Buscar turma"
+              opcoes={turmas.map((t) => ({
+                valor: t.id,
+                rotulo: t.periodo ? `${t.nome} (${t.periodo})` : t.nome,
+              }))}
+              valor={turmaSelecionada?.id}
+              aoMudar={(id) => {
+                const encontrada = turmas.find((t) => t.id === id);
+                if (encontrada) handleTrocarTurma(encontrada);
+              }}
+            />
           ) : (
             <Button size="sm" variant="secondary" onClick={abrirModalCriarTurma}>
               <Plus className="w-3.5 h-3.5" />
@@ -378,18 +375,13 @@ export function ProfessorLayout() {
             onChange={(e) => setPeriodoTurma(e.target.value)}
           />
 
-          <Select
+          <Combobox
             label="Curso"
-            value={cursoTurmaId}
-            onChange={(e) => setCursoTurmaId(e.target.value)}
+            opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+            valor={cursoTurmaId}
+            aoMudar={setCursoTurmaId}
             required
-          >
-            {cursos.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </Select>
+          />
           {cursos.length === 0 ? (
             <p className="text-xs text-muted -mt-2">
               Nenhum curso cadastrado.{' '}
