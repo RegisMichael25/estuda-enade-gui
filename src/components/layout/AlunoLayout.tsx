@@ -1,13 +1,13 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Play, BarChart2, Settings, LogOut } from 'lucide-react';
+import { Home, Play, BarChart2, Users, LogOut } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 const LINKS: { to: string; rotulo: string; icone: LucideIcon; end?: boolean }[] = [
   { to: '/aluno', rotulo: 'Início', icone: Home, end: true },
   { to: '/aluno/pratica', rotulo: 'Praticar', icone: Play },
   { to: '/aluno/desempenho', rotulo: 'Desempenho', icone: BarChart2 },
-  { to: '/aluno/configuracoes', rotulo: 'Configurações', icone: Settings }
+  { to: '/aluno/turmas', rotulo: 'Turmas', icone: Users }
 ];
 
 export function AlunoLayout() {

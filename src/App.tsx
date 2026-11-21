@@ -19,7 +19,6 @@ import { AlunoTentativaPage } from '@/pages/aluno/AlunoTentativaPage';
 import { AlunoResultadoPage } from '@/pages/aluno/AlunoResultadoPage';
 import { AlunoDesempenhoPage } from '@/pages/aluno/AlunoDesempenhoPage';
 import { AlunoTurmasPage } from '@/pages/aluno/AlunoTurmasPage';
-import { AlunoConfiguracoesPage } from '@/pages/aluno/AlunoConfiguracoesPage';
 
 // Professor Pages
 import { ProfessorInicioPage } from '@/pages/professor/ProfessorInicioPage';
@@ -28,6 +27,7 @@ import { ProfessorNovaQuestaoPage } from '@/pages/professor/ProfessorNovaQuestao
 import { ProfessorAtividadesPage } from '@/pages/professor/ProfessorAtividadesPage';
 import { ProfessorResultadosPage } from '@/pages/professor/ProfessorResultadosPage';
 import { ProfessorDocentesPage } from '@/pages/professor/ProfessorDocentesPage';
+import { ProfessorCursosPage } from '@/pages/professor/ProfessorCursosPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,8 +75,7 @@ export function App() {
                   <Route path="tentativa/:id" element={<AlunoTentativaPage />} />
                   <Route path="tentativa/:id/resultado" element={<AlunoResultadoPage />} />
                   <Route path="desempenho" element={<AlunoDesempenhoPage />} />
-                  <Route path="configuracoes" element={<AlunoConfiguracoesPage />} />
-                  <Route path="configuracoes/turmas" element={<AlunoTurmasPage />} />
+                  <Route path="turmas" element={<AlunoTurmasPage />} />
                 </Route>
               </Route>
 
@@ -89,6 +88,7 @@ export function App() {
                   <Route path="atividades" element={<ProfessorAtividadesPage />} />
                   <Route path="atividades/:id/resultados" element={<ProfessorResultadosPage />} />
                   <Route path="resultados" element={<ProfessorResultadosPage />} />
+                  <Route path="cursos" element={<ProfessorCursosPage />} />
                   <Route path="docentes" element={<ProfessorDocentesPage />} />
                 </Route>
               </Route>

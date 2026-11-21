@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/api/client';
 import type { Turma, Curso } from '@/api/models';
@@ -9,6 +9,7 @@ import {
   FileText,
   BarChart2,
   Users,
+  GraduationCap,
   LogOut,
   Plus
 } from 'lucide-react';
@@ -17,8 +18,6 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { NovoItemCatalogo } from '@/components/ui/NovoItemCatalogo';
-import { adicionarOrdenado } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 
 export function ProfessorLayout() {
@@ -242,6 +241,20 @@ export function ProfessorLayout() {
           </NavLink>
 
           <NavLink
+            to="/professor/cursos"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
+                isActive
+                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
+                  : 'border-transparent text-ink hover:bg-bg'
+              }`
+            }
+          >
+            <GraduationCap className="w-4 h-4 flex-none" />
+            Cursos
+          </NavLink>
+
+          <NavLink
             to="/professor/docentes"
             className={({ isActive }) =>
               `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
@@ -377,15 +390,31 @@ export function ProfessorLayout() {
               </option>
             ))}
           </Select>
-          <NovoItemCatalogo
-            rotulo="Novo curso"
-            placeholder="Nome do curso"
-            criar={api.professor.criarCurso}
-            onCriado={(curso) => {
-              setCursos((lista) => adicionarOrdenado(lista, curso));
-              setCursoTurmaId(curso.id);
-            }}
-          />
+          {cursos.length === 0 ? (
+            <p className="text-xs text-muted -mt-2">
+              Nenhum curso cadastrado.{' '}
+              <Link
+                to="/professor/cursos"
+                onClick={() => setModalCriarTurmaAberta(false)}
+                className="font-bold text-ink underline hover:text-orange"
+              >
+                Cadastre um curso
+              </Link>{' '}
+              antes de criar a turma.
+            </p>
+          ) : (
+            <p className="text-xs text-muted -mt-2">
+              Não encontrou o curso?{' '}
+              <Link
+                to="/professor/cursos"
+                onClick={() => setModalCriarTurmaAberta(false)}
+                className="font-bold text-ink underline hover:text-orange"
+              >
+                Gerencie em Cursos
+              </Link>
+              .
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-2 border-t-2 border-ink/20">
             <Button

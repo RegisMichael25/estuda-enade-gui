@@ -1,25 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { TurmaAluno } from '@/api/models';
+import type { TurmaAluno, AtividadeAluno } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
-import { Link } from 'react-router-dom';
-import { Users, ArrowLeft } from 'lucide-react';
+import { Users, ClipboardList, ArrowRight } from 'lucide-react';
 
 export function AlunoTurmasPage() {
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [turmas, setTurmas] = useState<TurmaAluno[]>([]);
+  const [atividades, setAtividades] = useState<AtividadeAluno[]>([]);
   const [codigoTurma, setCodigoTurma] = useState('');
   const [entrandoTurma, setEntrandoTurma] = useState(false);
   const [carregando, setCarregando] = useState(true);
 
-  async function carregarTurmas() {
+  async function carregarDados() {
     try {
-      setTurmas(await api.aluno.obterTurmas());
+      const [listaTurmas, listaAtividades] = await Promise.all([
+        api.aluno.obterTurmas(),
+        api.aluno.obterAtividades().catch((): AtividadeAluno[] => [])
+      ]);
+      setTurmas(listaTurmas);
+      setAtividades(listaAtividades);
     } catch (err) {
       console.error('Erro ao carregar turmas do aluno:', err);
     } finally {
@@ -28,7 +35,7 @@ export function AlunoTurmasPage() {
   }
 
   useEffect(() => {
-    carregarTurmas();
+    carregarDados();
   }, []);
 
   async function handleEntrarTurma(e: React.FormEvent) {
@@ -40,7 +47,7 @@ export function AlunoTurmasPage() {
       await api.aluno.entrarTurma(codigoTurma.trim());
       toast('Você entrou na turma com sucesso!');
       setCodigoTurma('');
-      await carregarTurmas();
+      await carregarDados();
     } catch (err: any) {
       toast(err.mensagem || 'Código de turma inválido ou expirado.');
     } finally {
@@ -50,17 +57,9 @@ export function AlunoTurmasPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <Link
-          to="/aluno/configuracoes"
-          className="text-xs font-bold text-muted hover:text-ink inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Configurações
-        </Link>
-        <h1 className="text-2xl font-extrabold font-title text-ink mt-1">Turmas</h1>
-      </div>
+      <h1 className="text-2xl font-extrabold font-title text-ink">Turmas</h1>
 
+      {/* Entrar em uma turma com código */}
       <Card color="lilac" className="p-6">
         <h2 className="text-xl font-bold font-title text-ink">
           {turmas.length === 0 ? 'Bora estudar pro ENADE?' : 'Entrar em outra turma'}
@@ -83,6 +82,7 @@ export function AlunoTurmasPage() {
         </form>
       </Card>
 
+      {/* Turmas do aluno com suas atividades */}
       <div className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-muted">
@@ -91,26 +91,66 @@ export function AlunoTurmasPage() {
           <span className="text-xs font-bold text-muted">{turmas.length}</span>
         </div>
 
-        {!carregando && turmas.length === 0 ? (
+        {!carregando && turmas.length === 0 && (
           <Card className="p-4 text-center bg-paper">
             <p className="text-xs font-bold text-muted">Você ainda não está em nenhuma turma.</p>
           </Card>
-        ) : (
-          turmas.map((t) => (
-            <Card key={t.id} className="p-3.5 flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-lilac border-2 border-ink flex items-center justify-center flex-none shadow-brutal-sm">
-                <Users className="w-5 h-5 text-ink" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-sm text-ink truncate">{t.nome}</h3>
-                <p className="text-xs text-muted mt-0.5 truncate">
-                  {t.curso ? `${t.curso.nome} · ` : ''}Prof. {t.professor}
-                </p>
-              </div>
-              {t.periodo && <Tag color="lilac">{t.periodo}</Tag>}
-            </Card>
-          ))
         )}
+
+        {turmas.map((t) => {
+          const atividadesTurma = atividades.filter((a) => a.turma.id === t.id);
+
+          return (
+            <Card key={t.id} className="p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-lilac border-2 border-ink flex items-center justify-center flex-none shadow-brutal-sm">
+                  <Users className="w-5 h-5 text-ink" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-sm text-ink truncate">{t.nome}</h3>
+                  <p className="text-xs text-muted mt-0.5 truncate">
+                    {t.curso ? `${t.curso.nome} · ` : ''}Prof. {t.professor}
+                  </p>
+                </div>
+                {t.periodo && <Tag color="lilac">{t.periodo}</Tag>}
+              </div>
+
+              <div className="flex flex-col gap-2 pt-3 border-t-2 border-ink/20">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Atividades ({atividadesTurma.length})
+                </span>
+
+                {atividadesTurma.length === 0 ? (
+                  <p className="text-xs text-muted">Nenhuma atividade aberta nesta turma.</p>
+                ) : (
+                  atividadesTurma.map((atv) => (
+                    <button
+                      key={atv.id}
+                      onClick={() => navigate(`/aluno/atividade/${atv.id}`)}
+                      className="flex items-center gap-3 p-2.5 rounded-xl border-2 border-ink bg-paper hover:bg-bg transition-all text-left cursor-pointer"
+                    >
+                      <ClipboardList className="w-4 h-4 text-ink flex-none" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-ink truncate">{atv.titulo}</div>
+                        <div className="text-xs text-muted">
+                          {atv.totalQuestoes} questões ·{' '}
+                          {atv.duracaoMinutos ? `${atv.duracaoMinutos} min` : 'Sem tempo'}
+                          {atv.melhorAcertos != null &&
+                            ` · Melhor: ${atv.melhorAcertos}/${atv.totalQuestoes}`}
+                        </div>
+                      </div>
+                      {!atv.podeIniciar ? (
+                        <Tag color="green">Concluído</Tag>
+                      ) : (
+                        <ArrowRight className="w-4 h-4 text-muted flex-none" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,34 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { TurmaAluno, AtividadeAluno, DesempenhoAluno } from '@/api/models';
+import type { AtividadeAluno, DesempenhoAluno } from '@/api/models';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import { Play, ClipboardList, ArrowRight } from 'lucide-react';
 
 export function AlunoInicioPage() {
   const navigate = useNavigate();
 
-  const [turmas, setTurmas] = useState<TurmaAluno[]>([]);
   const [atividades, setAtividades] = useState<AtividadeAluno[]>([]);
   const [desempenho, setDesempenho] = useState<DesempenhoAluno | null>(null);
-  const [carregando, setCarregando] = useState(true);
 
   async function carregarDados() {
     try {
-      const [listaTurmas, listaAtividades, dadosDesempenho] = await Promise.all([
-        api.aluno.obterTurmas(),
+      const [listaAtividades, dadosDesempenho] = await Promise.all([
         api.aluno.obterAtividades().catch((): AtividadeAluno[] => []),
         api.aluno.obterDesempenho().catch((): DesempenhoAluno | null => null)
       ]);
-      setTurmas(listaTurmas);
       setAtividades(listaAtividades);
       setDesempenho(dadosDesempenho);
     } catch (err) {
       console.error('Erro ao carregar dados do aluno:', err);
-    } finally {
-      setCarregando(false);
     }
   }
 
@@ -36,39 +29,8 @@ export function AlunoInicioPage() {
     carregarDados();
   }, []);
 
-  const primeiraTurma = turmas[0];
-
   return (
     <div className="flex flex-col gap-5">
-      {/* Caso o aluno não esteja em nenhuma turma ainda */}
-      {turmas.length === 0 && !carregando && (
-        <Card color="lilac" className="p-6">
-          <div className="w-12 h-12 rounded-xl bg-paper border-2 border-ink flex items-center justify-center font-title font-extrabold text-xl text-ink shadow-brutal-sm mb-3">
-            e
-          </div>
-          <h2 className="text-xl font-bold font-title text-ink">Bora estudar pro ENADE?</h2>
-          <p className="text-xs text-ink/80 mt-1 mb-4">
-            Digite o código de convite fornecido pelo seu professor para acessar os simulados da turma.
-          </p>
-
-          <Button variant="primary" fullWidth onClick={() => navigate('/aluno/configuracoes/turmas')}>
-            Entrar com código da turma
-          </Button>
-        </Card>
-      )}
-
-      {/* Indicador de Turma Vinculada */}
-      {primeiraTurma && (
-        <div className="flex items-center justify-between">
-          <Tag color="lilac" className="text-xs py-1 px-3">
-            {primeiraTurma.nome} {primeiraTurma.curso ? `· ${primeiraTurma.curso.nome}` : ''}
-          </Tag>
-          <span className="text-xs font-bold text-muted">
-            Prof. {primeiraTurma.professor}
-          </span>
-        </div>
-      )}
-
       {/* Hero: Resumo de Desempenho */}
       <Card color="orange" className="p-5">
         <span className="text-[11px] font-bold uppercase tracking-wider text-white/90">
