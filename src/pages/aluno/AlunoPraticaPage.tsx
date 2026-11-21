@@ -9,12 +9,14 @@ import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { Combobox } from '@/components/ui/Combobox';
 import { ArrowLeft, Flag, CheckCircle, XCircle, ArrowRight, BookOpen } from 'lucide-react';
 
 export function AlunoPraticaPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   // Estados dos filtros
   const [cursos, setCursos] = useState<Curso[]>([]);
@@ -127,6 +129,20 @@ export function AlunoPraticaPage() {
     }
   }
 
+  async function handleSairDaPratica() {
+    // Só pergunta se já houve progresso na sessão.
+    if (indiceAtual > 0 || respondido) {
+      const ok = await confirmar({
+        titulo: 'Voltar para os filtros?',
+        mensagem: `Você está na questão ${indiceAtual + 1} de ${questoes.length}. As respostas já dadas ficam salvas, mas esta sequência recomeça do início.`,
+        rotuloConfirmar: 'Voltar aos filtros',
+        rotuloCancelar: 'Continuar praticando',
+      });
+      if (!ok) return;
+    }
+    setEmPratica(false);
+  }
+
   function handleProximaQuestao() {
     if (indiceAtual + 1 < questoes.length) {
       setIndiceAtual((i) => i + 1);
@@ -164,7 +180,7 @@ export function AlunoPraticaPage() {
         {/* Topo com navegação e tags */}
         <div className="flex items-center justify-between pb-2 border-b-2 border-ink">
           <button
-            onClick={() => setEmPratica(false)}
+            onClick={handleSairDaPratica}
             className="text-xs font-bold text-muted hover:text-ink flex items-center gap-1 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />

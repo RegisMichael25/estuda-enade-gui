@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import {
   Plus,
   ClipboardList,
@@ -30,6 +31,7 @@ const ROTULO_STATUS: Record<StatusAtividade, string> = {
 export function ProfessorAtividadesPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
   const { turmaSelecionada } = useOutletContext<ContextType>();
 
   const [atividades, setAtividades] = useState<Atividade[]>([]);
@@ -89,6 +91,17 @@ export function ProfessorAtividadesPage() {
       return;
     }
 
+    if (
+      publicarImediatamente &&
+      !(await confirmar({
+        titulo: 'Criar e publicar atividade?',
+        mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turmaSelecionada.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
+        rotuloConfirmar: 'Publicar',
+      }))
+    ) {
+      return;
+    }
+
     setSalvando(true);
     try {
       const nova = await api.professor.criarAtividadeTurma(turmaSelecionada.id, {
@@ -118,6 +131,12 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handlePublicar(atv: Atividade) {
+    const ok = await confirmar({
+      titulo: 'Publicar atividade?',
+      mensagem: `"${atv.titulo}" fica disponível para os alunos na hora. Depois de publicada, não pode mais ser alterada.`,
+      rotuloConfirmar: 'Publicar',
+    });
+    if (!ok) return;
     try {
       await api.professor.publicarAtividade(atv.id);
       toast('Atividade publicada com sucesso!');
@@ -128,6 +147,13 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handleEncerrar(atv: Atividade) {
+    const ok = await confirmar({
+      titulo: 'Encerrar atividade?',
+      mensagem: `"${atv.titulo}" deixa de aceitar respostas, inclusive de quem está fazendo agora. Uma atividade encerrada não pode ser reaberta.`,
+      rotuloConfirmar: 'Encerrar',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.professor.encerrarAtividade(atv.id);
       toast('Atividade encerrada.');
@@ -138,7 +164,13 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handleExcluir(atv: Atividade) {
-    if (!confirm(`Deseja excluir a atividade "${atv.titulo}"?`)) return;
+    const ok = await confirmar({
+      titulo: 'Excluir rascunho?',
+      mensagem: `O rascunho "${atv.titulo}" será apagado. Essa ação não pode ser desfeita.`,
+      rotuloConfirmar: 'Excluir',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.professor.excluirAtividade(atv.id);
       toast('Atividade excluída.');

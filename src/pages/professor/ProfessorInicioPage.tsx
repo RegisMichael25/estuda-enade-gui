@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import {
   ClipboardList,
   Copy,
@@ -23,6 +24,7 @@ export function ProfessorInicioPage() {
   const { usuario } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
   const { turmaSelecionada } = useOutletContext<ContextType>();
 
   const [resumo, setResumo] = useState<ResumoTurma | null>(null);
@@ -51,6 +53,13 @@ export function ProfessorInicioPage() {
 
   async function handleGerarNovoCodigo() {
     if (!turmaSelecionada) return;
+    const ok = await confirmar({
+      titulo: 'Gerar novo código de convite?',
+      mensagem: 'O código atual deixa de funcionar e quem ainda não entrou vai precisar do novo. Os alunos que já estão na turma continuam nela.',
+      rotuloConfirmar: 'Gerar novo código',
+      perigo: true,
+    });
+    if (!ok) return;
     setGerandoCodigo(true);
     try {
       const atualizada = await api.professor.gerarNovoConviteTurma(turmaSelecionada.id);

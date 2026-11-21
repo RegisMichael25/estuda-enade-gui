@@ -4,8 +4,8 @@ import { api } from '@/api/client';
 import type { TentativaEstado, QuestaoAluno } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { formatarTempo } from '@/lib/utils';
 import { Clock, Send, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 
@@ -13,6 +13,7 @@ export function AlunoTentativaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   const [tentativa, setTentativa] = useState<TentativaEstado | null>(null);
   const [indiceAtual, setIndiceAtual] = useState(0);
@@ -20,7 +21,6 @@ export function AlunoTentativaPage() {
   const [segundosRestantes, setSegundosRestantes] = useState<number | null>(null);
   const [salvandoResposta, setSalvandoResposta] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [modalConfirmarAberto, setModalConfirmarAberto] = useState(false);
   const [carregando, setCarregando] = useState(true);
 
   const enviadoRef = useRef(false);
@@ -110,7 +110,6 @@ export function AlunoTentativaPage() {
       toast(err.mensagem || 'Erro ao enviar respostas.');
     } finally {
       setEnviando(false);
-      setModalConfirmarAberto(false);
     }
   }
 
@@ -127,6 +126,32 @@ export function AlunoTentativaPage() {
   const totalQuestoes = questoes.length;
   const totalMarcadas = Object.keys(respostas).length;
   const pendentes = totalQuestoes - totalMarcadas;
+
+  async function handlePedirEnvio() {
+    const ok = await confirmar({
+      titulo: 'Finalizar e enviar simulado?',
+      mensagem: (
+        <div className="flex flex-col gap-3">
+          <p className="text-ink/90">
+            Você respondeu <b>{totalMarcadas}</b> de <b>{totalQuestoes}</b> questões.
+          </p>
+          {pendentes > 0 && (
+            <div className="p-3 bg-pink/20 border-2 border-ink rounded-xl text-xs font-bold text-ink flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-pink flex-none" />
+              <span>
+                Atenção: ainda {pendentes === 1 ? 'resta 1 questão' : `restam ${pendentes} questões`} sem
+                resposta!
+              </span>
+            </div>
+          )}
+          <p>Ao confirmar, sua tentativa será encerrada e você verá seu gabarito e pontuação.</p>
+        </div>
+      ),
+      rotuloConfirmar: 'Sim, enviar agora',
+      rotuloCancelar: 'Revisar mais',
+    });
+    if (ok) handleFinalizarTentativa(false);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -240,49 +265,13 @@ export function AlunoTentativaPage() {
         size="lg"
         fullWidth
         carregando={enviando}
-        onClick={() => setModalConfirmarAberto(true)}
+        onClick={handlePedirEnvio}
         className="mt-2"
       >
         <Send className="w-4 h-4" />
         Enviar respostas ({totalMarcadas}/{totalQuestoes})
       </Button>
 
-      {/* Modal de Confirmação de Envio */}
-      <Modal
-        aberto={modalConfirmarAberto}
-        aoFechar={() => setModalConfirmarAberto(false)}
-        titulo="Finalizar e enviar simulado?"
-      >
-        <div className="flex flex-col gap-3">
-          <p className="text-xs text-ink/90">
-            Você respondeu <b>{totalMarcadas}</b> de <b>{totalQuestoes}</b> questões.
-          </p>
-
-          {pendentes > 0 && (
-            <div className="p-3 bg-pink/20 border-2 border-ink rounded-xl text-xs font-bold text-ink flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-pink flex-none" />
-              <span>Atenção: ainda restam {pendentes} questões sem resposta!</span>
-            </div>
-          )}
-
-          <p className="text-xs text-muted">
-            Ao confirmar, sua tentativa será encerrada e você verá seu gabarito e pontuação.
-          </p>
-
-          <div className="flex justify-end gap-2 mt-3">
-            <Button variant="ghost" onClick={() => setModalConfirmarAberto(false)}>
-              Revisar mais
-            </Button>
-            <Button
-              variant="primary"
-              carregando={enviando}
-              onClick={() => handleFinalizarTentativa(false)}
-            >
-              Sim, enviar agora
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

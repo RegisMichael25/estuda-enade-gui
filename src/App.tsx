@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/components/ui/Toast';
+import { ConfirmacaoProvider } from '@/components/ui/Confirmacao';
 import { PrivateRoute } from '@/components/layout/PrivateRoute';
 import { AlunoLayout } from '@/components/layout/AlunoLayout';
 import { ProfessorLayout } from '@/components/layout/ProfessorLayout';
@@ -58,44 +59,46 @@ export function App() {
       <ToastProvider>
         <AuthProvider>
           <BrowserRouter>
-            <Routes>
-              {/* Rota Raiz com Redirecionamento por Papel */}
-              <Route path="/" element={<RootRedirect />} />
+            <ConfirmacaoProvider>
+              <Routes>
+                {/* Rota Raiz com Redirecionamento por Papel */}
+                <Route path="/" element={<RootRedirect />} />
 
-              {/* Autenticação Pública */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/professor/pendente" element={<CadastroPendentePage />} />
+                {/* Autenticação Pública */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/professor/pendente" element={<CadastroPendentePage />} />
 
-              {/* Rotas Protegidas do Aluno */}
-              <Route element={<PrivateRoute papel="ALUNO" />}>
-                <Route path="/aluno" element={<AlunoLayout />}>
-                  <Route index element={<AlunoInicioPage />} />
-                  <Route path="pratica" element={<AlunoPraticaPage />} />
-                  <Route path="atividade/:id" element={<AlunoAtividadeDetalhePage />} />
-                  <Route path="tentativa/:id" element={<AlunoTentativaPage />} />
-                  <Route path="tentativa/:id/resultado" element={<AlunoResultadoPage />} />
-                  <Route path="desempenho" element={<AlunoDesempenhoPage />} />
-                  <Route path="turmas" element={<AlunoTurmasPage />} />
+                {/* Rotas Protegidas do Aluno */}
+                <Route element={<PrivateRoute papel="ALUNO" />}>
+                  <Route path="/aluno" element={<AlunoLayout />}>
+                    <Route index element={<AlunoInicioPage />} />
+                    <Route path="pratica" element={<AlunoPraticaPage />} />
+                    <Route path="atividade/:id" element={<AlunoAtividadeDetalhePage />} />
+                    <Route path="tentativa/:id" element={<AlunoTentativaPage />} />
+                    <Route path="tentativa/:id/resultado" element={<AlunoResultadoPage />} />
+                    <Route path="desempenho" element={<AlunoDesempenhoPage />} />
+                    <Route path="turmas" element={<AlunoTurmasPage />} />
+                  </Route>
                 </Route>
-              </Route>
 
-              {/* Rotas Protegidas do Professor */}
-              <Route element={<PrivateRoute papel="PROFESSOR" />}>
-                <Route path="/professor" element={<ProfessorLayout />}>
-                  <Route index element={<ProfessorInicioPage />} />
-                  <Route path="questoes" element={<ProfessorQuestoesPage />} />
-                  <Route path="questoes/nova" element={<ProfessorNovaQuestaoPage />} />
-                  <Route path="atividades" element={<ProfessorAtividadesPage />} />
-                  <Route path="atividades/:id/resultados" element={<ProfessorResultadosPage />} />
-                  <Route path="resultados" element={<ProfessorResultadosPage />} />
-                  <Route path="cursos" element={<ProfessorCursosPage />} />
-                  <Route path="docentes" element={<ProfessorDocentesPage />} />
+                {/* Rotas Protegidas do Professor */}
+                <Route element={<PrivateRoute papel="PROFESSOR" />}>
+                  <Route path="/professor" element={<ProfessorLayout />}>
+                    <Route index element={<ProfessorInicioPage />} />
+                    <Route path="questoes" element={<ProfessorQuestoesPage />} />
+                    <Route path="questoes/nova" element={<ProfessorNovaQuestaoPage />} />
+                    <Route path="atividades" element={<ProfessorAtividadesPage />} />
+                    <Route path="atividades/:id/resultados" element={<ProfessorResultadosPage />} />
+                    <Route path="resultados" element={<ProfessorResultadosPage />} />
+                    <Route path="cursos" element={<ProfessorCursosPage />} />
+                    <Route path="docentes" element={<ProfessorDocentesPage />} />
+                  </Route>
                 </Route>
-              </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </ConfirmacaoProvider>
           </BrowserRouter>
         </AuthProvider>
       </ToastProvider>
