@@ -9,6 +9,7 @@ import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { Combobox } from '@/components/ui/Combobox';
 import { ArrowLeft, Flag, CheckCircle, XCircle, ArrowRight, BookOpen } from 'lucide-react';
 
 export function AlunoPraticaPage() {
@@ -345,22 +346,13 @@ export function AlunoPraticaPage() {
       </div>
 
       {/* Seletor de Curso */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold uppercase tracking-wider text-muted">
-          Curso
-        </label>
-        <select
-          value={cursoId}
-          onChange={(e) => handleTrocarCurso(e.target.value)}
-          className="w-full bg-paper text-ink border-[2.5px] border-ink rounded-xl px-3 py-2 font-bold text-xs cursor-pointer focus:outline-none"
-        >
-          {cursos.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nome}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Combobox
+        label="Curso"
+        tamanho="sm"
+        opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+        valor={cursoId}
+        aoMudar={handleTrocarCurso}
+      />
 
       {/* Chips de Ano */}
       <div className="flex flex-col gap-1.5">

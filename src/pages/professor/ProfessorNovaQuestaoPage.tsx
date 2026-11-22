@@ -5,7 +5,7 @@ import type { Curso, Tema } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { Combobox } from '@/components/ui/Combobox';
 import { NovoItemCatalogo } from '@/components/ui/NovoItemCatalogo';
 import { useToast } from '@/components/ui/Toast';
 import { adicionarOrdenado } from '@/lib/utils';
@@ -202,17 +202,12 @@ export function ProfessorNovaQuestaoPage() {
             Metadados ENADE
           </h3>
 
-          <Select
+          <Combobox
             label="Curso"
-            value={cursoId}
-            onChange={(e) => setCursoId(e.target.value)}
-          >
-            {cursos.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </Select>
+            opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+            valor={cursoId}
+            aoMudar={setCursoId}
+          />
           <NovoItemCatalogo
             rotulo="Novo curso"
             placeholder="Nome do curso"
@@ -220,28 +215,19 @@ export function ProfessorNovaQuestaoPage() {
             onCriado={handleCursoCriado}
           />
 
-          <Select
+          <Combobox
             label="Ano do Exame"
-            value={ano}
-            onChange={(e) => setAno(Number(e.target.value))}
-          >
-            <option value={2024}>2024</option>
-            <option value={2021}>2021</option>
-            <option value={2017}>2017</option>
-            <option value={2014}>2014</option>
-          </Select>
+            opcoes={[2024, 2021, 2017, 2014].map((a) => ({ valor: a, rotulo: String(a) }))}
+            valor={ano}
+            aoMudar={setAno}
+          />
 
-          <Select
+          <Combobox
             label="Tema / Matéria"
-            value={temaId}
-            onChange={(e) => setTemaId(e.target.value)}
-          >
-            {temas.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nome}
-              </option>
-            ))}
-          </Select>
+            opcoes={temas.map((t) => ({ valor: t.id, rotulo: t.nome }))}
+            valor={temaId}
+            aoMudar={setTemaId}
+          />
           <NovoItemCatalogo
             rotulo="Novo tema"
             placeholder="Nome do tema"
