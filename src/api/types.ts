@@ -216,6 +216,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/professor/painel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Painel inicial: números e atividades recentes de todas as turmas ativas
+         * @description Considera só as turmas não arquivadas. `totalAlunos` conta cada aluno uma vez, mesmo que esteja em mais de uma turma.
+         */
+        get: operations["painelDoProfessor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/professor/turmas": {
         parameters: {
             query?: never;
@@ -223,7 +243,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Minhas turmas */
+        /**
+         * Minhas turmas
+         * @description Por padrão só as turmas ativas. Com `incluirArquivadas=true`, vêm também as arquivadas (campo `arquivadaEm` preenchido).
+         */
         get: operations["listarTurmas"];
         put?: never;
         /** Cria uma turma e gera o código de convite */
@@ -261,8 +284,51 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Gera novo código de convite; o antigo deixa de valer */
+        /**
+         * Gera novo código de convite; o antigo deixa de valer
+         * @description Turma arquivada responde `422 TURMA_ARQUIVADA`.
+         */
         post: operations["renovarConvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/professor/turmas/{turmaId}/arquivar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arquiva a turma
+         * @description A turma sai da lista padrão, o código de convite deixa de aceitar alunos, ela não recebe novas atividades e as atividades publicadas passam a encerradas (tentativas em andamento seguem até o envio ou o fim do tempo). A turma some da lista do aluno. Alunos, atividades e resultados continuam guardados. Arquivar de novo não gera erro.
+         */
+        post: operations["arquivarTurma"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/professor/turmas/{turmaId}/reativar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reativa uma turma arquivada
+         * @description Volta a turma para a lista padrão (e para a lista do aluno) com o mesmo código de convite. As atividades encerradas no arquivamento continuam encerradas. Reativar uma turma ativa não gera erro.
+         */
+        post: operations["reativarTurma"];
         delete?: never;
         options?: never;
         head?: never;
@@ -330,7 +396,10 @@ export interface paths {
         /** Atividades da turma */
         get: operations["atividadesDaTurma"];
         put?: never;
-        /** Cria uma atividade em rascunho */
+        /**
+         * Cria uma atividade em rascunho
+         * @description Turma arquivada responde `422 TURMA_ARQUIVADA`.
+         */
         post: operations["criarAtividade"];
         delete?: never;
         options?: never;
@@ -471,7 +540,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publica a atividade para a turma */
+        /**
+         * Publica a atividade para a turma
+         * @description Turma arquivada responde `422 TURMA_ARQUIVADA`.
+         */
         post: operations["publicarAtividade"];
         delete?: never;
         options?: never;
@@ -522,7 +594,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Entra na turma com o código do convite */
+        /**
+         * Entra na turma com o código do convite
+         * @description Turma arquivada não aceita novos alunos: `422 TURMA_ARQUIVADA`.
+         */
         post: operations["entrarNaTurma"];
         delete?: never;
         options?: never;
@@ -537,11 +612,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Minhas turmas */
+        /**
+         * Minhas turmas
+         * @description Turmas arquivadas pelo professor não aparecem.
+         */
         get: operations["minhasTurmas"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/turmas/{turmaId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sai da turma
+         * @description O aluno deixa de ver a turma e as atividades dela. Tentativas e resultados ficam guardados. Para voltar, entra de novo com o código de convite. Turma em que o aluno não está responde 404.
+         */
+        delete: operations["sairDaTurma"];
         options?: never;
         head?: never;
         patch?: never;
@@ -962,6 +1060,11 @@ export interface components {
             totalAlunos: number;
             /** Format: date-time */
             criadaEm: string;
+            /**
+             * Format: date-time
+             * @description Quando a turma foi arquivada; null se ativa.
+             */
+            arquivadaEm: string | null;
         };
         AlunoResponse: {
             /** Format: uuid */
@@ -1271,6 +1374,53 @@ export interface components {
             nome: string;
             porTema: components["schemas"]["TemaDesempenho"][];
             tentativas: components["schemas"]["TentativaResumoResponse"][];
+        };
+        /** @description Linha de uma turma ativa no painel do professor. */
+        PainelTurma: {
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            periodo: string | null;
+            curso: components["schemas"]["ItemResponse"] | null;
+            /** Format: int64 */
+            totalAlunos: number;
+            /** Format: int64 */
+            atividadesAbertas: number;
+            /** Format: int32 */
+            mediaPercentual: number | null;
+        };
+        /** @description Atividade publicada ou encerrada de uma turma ativa. */
+        AtividadeRecentePainel: {
+            /** Format: uuid */
+            id: string;
+            titulo: string;
+            tipo: string;
+            status: string;
+            /** Format: int32 */
+            totalQuestoes: number;
+            /** Format: int32 */
+            duracaoMinutos: number | null;
+            /** Format: int64 */
+            concluiram: number;
+            turma: components["schemas"]["ItemResponse"];
+            /**
+             * Format: int64
+             * @description Alunos da turma da atividade.
+             */
+            totalAlunos: number;
+        };
+        PainelProfessorResponse: {
+            /** Format: int64 */
+            turmasAtivas: number;
+            /** Format: int64 */
+            totalAlunos: number;
+            /** Format: int64 */
+            atividadesAbertas: number;
+            /** Format: int64 */
+            questoesNoBanco: number;
+            turmas: components["schemas"]["PainelTurma"][];
+            /** @description As 6 publicadas mais recentes. */
+            atividades: components["schemas"]["AtividadeRecentePainel"][];
         };
     };
     responses: {
@@ -1710,9 +1860,42 @@ export interface operations {
             default: components["responses"]["Erro"];
         };
     };
-    listarTurmas: {
+    painelDoProfessor: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PainelProfessorResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    listarTurmas: {
+        parameters: {
+            query?: {
+                /** @description Inclui as turmas arquivadas. */
+                incluirArquivadas?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1861,6 +2044,97 @@ export interface operations {
         };
     };
     renovarConvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turmaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurmaResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    arquivarTurma: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turmaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurmaResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    reativarTurma: {
         parameters: {
             query?: never;
             header?: never;
@@ -2849,6 +3123,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErroResponse"];
                 };
             };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
             default: components["responses"]["Erro"];
         };
     };
@@ -2872,6 +3155,45 @@ export interface operations {
             };
             /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    sairDaTurma: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turmaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sem conteúdo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

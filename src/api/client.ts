@@ -6,6 +6,7 @@ import type {
   ResumoTurma,
   TurmaAluno,
   DesempenhoAlunoTurma,
+  PainelProfessor,
   Questao,
   PaginaQuestao,
   PaginaQuestaoAluno,
@@ -245,6 +246,12 @@ export const api = {
       });
     },
 
+    sairDaTurma(turmaId: string): Promise<void> {
+      return request<void>(`/aluno/turmas/${turmaId}`, {
+        method: 'DELETE'
+      });
+    },
+
     obterAtividades(): Promise<AtividadeAluno[]> {
       return request<AtividadeAluno[]>('/aluno/atividades');
     },
@@ -342,8 +349,15 @@ export const api = {
       });
     },
 
-    obterTurmas(): Promise<Turma[]> {
-      return request<Turma[]>('/professor/turmas');
+    /** Painel inicial: números e atividades recentes de todas as turmas ativas. */
+    obterPainel(): Promise<PainelProfessor> {
+      return request<PainelProfessor>('/professor/painel');
+    },
+
+    /** Só as turmas ativas, a menos que `incluirArquivadas` seja verdadeiro. */
+    obterTurmas(opcoes?: { incluirArquivadas?: boolean }): Promise<Turma[]> {
+      const query = opcoes?.incluirArquivadas ? '?incluirArquivadas=true' : '';
+      return request<Turma[]>(`/professor/turmas${query}`);
     },
 
     criarTurma(payload: { nome: string; periodo?: string; cursoId: string }): Promise<Turma> {
@@ -373,6 +387,18 @@ export const api = {
 
     gerarNovoConviteTurma(turmaId: string): Promise<Turma> {
       return request<Turma>(`/professor/turmas/${turmaId}/convite`, {
+        method: 'POST'
+      });
+    },
+
+    arquivarTurma(turmaId: string): Promise<Turma> {
+      return request<Turma>(`/professor/turmas/${turmaId}/arquivar`, {
+        method: 'POST'
+      });
+    },
+
+    reativarTurma(turmaId: string): Promise<Turma> {
+      return request<Turma>(`/professor/turmas/${turmaId}/reativar`, {
         method: 'POST'
       });
     },

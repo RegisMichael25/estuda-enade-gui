@@ -16,6 +16,9 @@ export type ResumoTurma = Schemas['ResumoTurmaResponse'];
 export type TurmaAluno = Schemas['TurmaAlunoResponse'];
 export type Aluno = Schemas['AlunoResponse'];
 export type DesempenhoAlunoTurma = Schemas['DesempenhoAlunoTurmaResponse'];
+export type PainelProfessor = Schemas['PainelProfessorResponse'];
+export type PainelTurma = Schemas['PainelTurma'];
+export type AtividadeRecentePainel = Schemas['AtividadeRecentePainel'];
 
 export type Questao = Schemas['QuestaoResponse'];
 export type QuestaoAluno = Schemas['QuestaoAlunoResponse'];
