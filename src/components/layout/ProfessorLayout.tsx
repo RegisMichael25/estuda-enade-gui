@@ -19,10 +19,21 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Combobox } from '@/components/ui/Combobox';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 
 export function ProfessorLayout() {
   const { usuario, sair } = useAuth();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
+
+  async function handleSair() {
+    const ok = await confirmar({
+      titulo: 'Sair da conta?',
+      mensagem: 'Para entrar de novo, você vai precisar de um novo código de acesso enviado ao seu e-mail.',
+      rotuloConfirmar: 'Sair',
+    });
+    if (ok) sair();
+  }
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [turmaSelecionada, setTurmaSelecionada] = useState<Turma | null>(null);
 
@@ -120,7 +131,7 @@ export function ProfessorLayout() {
         )}
 
         <button
-          onClick={sair}
+          onClick={handleSair}
           title="Sair"
           className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
         >
@@ -278,7 +289,7 @@ export function ProfessorLayout() {
           </div>
 
           <button
-            onClick={sair}
+            onClick={handleSair}
             title="Sair"
             className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
           >

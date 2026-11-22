@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { Home, Play, BarChart2, Users, LogOut } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -12,6 +13,16 @@ const LINKS: { to: string; rotulo: string; icone: LucideIcon; end?: boolean }[] 
 
 export function AlunoLayout() {
   const { usuario, sair } = useAuth();
+  const confirmar = useConfirmacao();
+
+  async function handleSair() {
+    const ok = await confirmar({
+      titulo: 'Sair da conta?',
+      mensagem: 'Para entrar de novo, você vai precisar de um novo código de acesso enviado ao seu e-mail.',
+      rotuloConfirmar: 'Sair',
+    });
+    if (ok) sair();
+  }
   const location = useLocation();
 
   // Ocultar navegação durante uma tentativa de simulado
@@ -38,7 +49,7 @@ export function AlunoLayout() {
             {iniciais}
           </div>
           <button
-            onClick={sair}
+            onClick={handleSair}
             title="Sair da conta"
             className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all cursor-pointer text-ink"
           >
@@ -96,7 +107,7 @@ export function AlunoLayout() {
             </div>
 
             <button
-              onClick={sair}
+              onClick={handleSair}
               title="Sair da conta"
               className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
             >

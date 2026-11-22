@@ -8,11 +8,13 @@ import { Chip } from '@/components/ui/Chip';
 import { Tag, Badge } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { Plus, Flag, EyeOff, Check } from 'lucide-react';
 
 export function ProfessorQuestoesPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [temas, setTemas] = useState<Tema[]>([]);
@@ -64,6 +66,12 @@ export function ProfessorQuestoesPage() {
   }, [apenasMinhas, filtroTemaId, filtroAno, filtroStatus, apenasSinalizadas]);
 
   async function handlePublicarQuestao(q: Questao) {
+    const ok = await confirmar({
+      titulo: 'Publicar questão?',
+      mensagem: 'A questão entra no banco institucional e na prática dos alunos, com gabarito e explicação. Confira antes de publicar.',
+      rotuloConfirmar: 'Publicar',
+    });
+    if (!ok) return;
     try {
       await api.professor.publicarQuestao(q.id);
       toast('Questão publicada no banco institucional!');
@@ -74,6 +82,13 @@ export function ProfessorQuestoesPage() {
   }
 
   async function handleOcultarQuestao(q: Questao) {
+    const ok = await confirmar({
+      titulo: 'Ocultar questão?',
+      mensagem: 'A questão sai do banco e da prática dos alunos. Atividades que já a usam não mudam. Você pode publicá-la de novo depois.',
+      rotuloConfirmar: 'Ocultar',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.professor.ocultarQuestao(q.id);
       toast('Questão ocultada do banco.');
@@ -96,6 +111,13 @@ export function ProfessorQuestoesPage() {
 
   async function handleResolverSinalizacoes() {
     if (!questaoSinalizadaAtiva) return;
+    const total = sinalizacoesQuestao.length;
+    const ok = await confirmar({
+      titulo: 'Marcar sinalizações como resolvidas?',
+      mensagem: `${total === 1 ? 'A sinalização aberta' : `As ${total} sinalizações abertas`} desta questão ${total === 1 ? 'sai' : 'saem'} da sua lista de pendências. Faça isso depois de corrigir a questão ou de concluir que ela está certa.`,
+      rotuloConfirmar: 'Resolver',
+    });
+    if (!ok) return;
     setResolvendoSinalizacao(true);
     try {
       await api.professor.resolverSinalizacoes(questaoSinalizadaAtiva.id);

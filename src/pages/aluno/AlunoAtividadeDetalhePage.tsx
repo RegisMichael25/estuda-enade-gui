@@ -5,12 +5,14 @@ import type { AtividadeAluno } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 
 export function AlunoAtividadeDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   const [atividade, setAtividade] = useState<AtividadeAluno | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -33,7 +35,29 @@ export function AlunoAtividadeDetalhePage() {
   }, [id, navigate, toast]);
 
   async function handleIniciar() {
-    if (!id) return;
+    if (!id || !atividade) return;
+    // Retomar uma tentativa aberta não gasta nada; só a nova pede confirmação.
+    if (!atividade.tentativaAbertaId) {
+      const restantes =
+        atividade.maxTentativas === null ? null : atividade.maxTentativas - atividade.tentativasFeitas;
+      const ok = await confirmar({
+        titulo: 'Iniciar atividade?',
+        mensagem: (
+          <>
+            {atividade.duracaoMinutos
+              ? `O cronômetro de ${atividade.duracaoMinutos} minutos começa agora e não pausa se você sair da tela.`
+              : 'Esta atividade não tem tempo limite.'}
+            {restantes !== null &&
+              ` Esta tentativa conta no seu limite: ${
+                restantes <= 1 ? 'é a última que você tem' : `restam ${restantes}, incluindo esta`
+              }.`}
+          </>
+        ),
+        rotuloConfirmar: 'Iniciar',
+        rotuloCancelar: 'Agora não',
+      });
+      if (!ok) return;
+    }
     setIniciando(true);
     try {
       const tentativa = await api.aluno.iniciarTentativa(id);

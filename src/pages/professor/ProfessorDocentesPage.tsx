@@ -5,10 +5,12 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { UserPlus, CheckCircle, Copy, ShieldCheck } from 'lucide-react';
 
 export function ProfessorDocentesPage() {
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   const [convites, setConvites] = useState<Convite[]>([]);
   const [pendentes, setPendentes] = useState<ProfessorPendente[]>([]);
@@ -51,10 +53,16 @@ export function ProfessorDocentesPage() {
     }
   }
 
-  async function handleAprovar(professorId: string) {
-    setAprovandoId(professorId);
+  async function handleAprovar(professor: ProfessorPendente) {
+    const ok = await confirmar({
+      titulo: 'Aprovar professor?',
+      mensagem: `${professor.nome} (${professor.email}) passa a ter acesso ao portal do professor: turmas, banco de questões e atividades. A aprovação não pode ser desfeita pelo sistema.`,
+      rotuloConfirmar: 'Aprovar',
+    });
+    if (!ok) return;
+    setAprovandoId(professor.id);
     try {
-      await api.professor.aprovarProfessor(professorId);
+      await api.professor.aprovarProfessor(professor.id);
       toast('Professor aprovado com sucesso!');
       await carregar();
     } catch (err: any) {
@@ -198,7 +206,7 @@ export function ProfessorDocentesPage() {
                     variant="green"
                     size="sm"
                     carregando={aprovandoId === p.id}
-                    onClick={() => handleAprovar(p.id)}
+                    onClick={() => handleAprovar(p)}
                   >
                     Aprovar
                   </Button>
