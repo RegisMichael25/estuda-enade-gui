@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { ProgressMeter } from '@/components/ui/Tag';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
+import { Combobox } from '@/components/ui/Combobox';
 
 interface ContextType {
   turmaSelecionada: Turma | null;
@@ -80,20 +81,16 @@ export function ProfessorResultadosPage() {
 
         {atividades.length > 0 && (
           <div className="w-full sm:w-64">
-            <select
-              value={atividadeIdAtiva}
-              onChange={(e) => {
-                setAtividadeIdAtiva(e.target.value);
-                navigate(`/professor/atividades/${e.target.value}/resultados`);
+            <Combobox
+              tamanho="sm"
+              placeholder="Buscar atividade"
+              opcoes={atividades.map((a) => ({ valor: a.id, rotulo: a.titulo }))}
+              valor={atividadeIdAtiva}
+              aoMudar={(id) => {
+                setAtividadeIdAtiva(id);
+                navigate(`/professor/atividades/${id}/resultados`);
               }}
-              className="w-full bg-paper border-[2.5px] border-ink rounded-xl px-3 py-2 text-xs font-bold text-ink cursor-pointer focus:outline-none"
-            >
-              {atividades.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.titulo}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         )}
       </div>

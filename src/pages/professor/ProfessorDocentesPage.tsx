@@ -5,9 +5,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { UserPlus, CheckCircle, Copy, ShieldCheck, Ban, Clock } from 'lucide-react';
 
 const COOLDOWN_MS = 5 * 60 * 1000;
+const LIMITE_HISTORICO_CONVITES = 5;
 
 function formatarTempoRestante(ms: number): string {
   const totalSegundos = Math.ceil(ms / 1000);
@@ -18,6 +20,7 @@ function formatarTempoRestante(ms: number): string {
 
 export function ProfessorDocentesPage() {
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   const [convites, setConvites] = useState<Convite[]>([]);
   const [pendentes, setPendentes] = useState<ProfessorPendente[]>([]);
@@ -40,6 +43,10 @@ export function ProfessorDocentesPage() {
   const restanteCooldownMs = Math.max(0, ultimoCriadoMs + COOLDOWN_MS - agoraMs);
   const emCooldown = restanteCooldownMs > 0;
   const bloqueadoGerar = temConviteAtivo || emCooldown;
+
+  const convitesRecentes = [...convites]
+    .sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime())
+    .slice(0, LIMITE_HISTORICO_CONVITES);
 
   async function carregar() {
     setCarregando(true);
@@ -85,6 +92,14 @@ export function ProfessorDocentesPage() {
   }
 
   async function handleInvalidarConvite(conviteId: string) {
+    const ok = await confirmar({
+      titulo: 'Invalidar convite?',
+      mensagem:
+        'O código gerado deixará de funcionar imediatamente e será necessário aguardar o intervalo para gerar outro.',
+      rotuloConfirmar: 'Invalidar',
+    });
+    if (!ok) return;
+
     setInvalidandoId(conviteId);
     try {
       await api.professor.invalidarConvite(conviteId);
@@ -100,10 +115,17 @@ export function ProfessorDocentesPage() {
     }
   }
 
-  async function handleAprovar(professorId: string) {
-    setAprovandoId(professorId);
+  async function handleAprovar(professor: ProfessorPendente) {
+    const ok = await confirmar({
+      titulo: 'Aprovar professor?',
+      mensagem: `${professor.nome} (${professor.email}) passa a ter acesso ao portal do professor: turmas, banco de questões e atividades. A aprovação não pode ser desfeita pelo sistema.`,
+      rotuloConfirmar: 'Aprovar',
+    });
+    if (!ok) return;
+
+    setAprovandoId(professor.id);
     try {
-      await api.professor.aprovarProfessor(professorId);
+      await api.professor.aprovarProfessor(professor.id);
       toast('Professor aprovado com sucesso!');
       await carregar();
     } catch (err: any) {
@@ -192,15 +214,16 @@ export function ProfessorDocentesPage() {
           {/* Histórico de Convites */}
           <div className="flex flex-col gap-2 mt-1">
             <span className="text-xs font-bold uppercase tracking-wider text-muted">
-              Convites emitidos ({convites.length})
+              Últimos convites ({convitesRecentes.length}
+              {convites.length > LIMITE_HISTORICO_CONVITES ? ` de ${convites.length}` : ''})
             </span>
 
-            {convites.length === 0 ? (
+            {convitesRecentes.length === 0 ? (
               <p className="text-xs text-muted font-bold py-2">
                 Nenhum convite emitido recentemente.
               </p>
             ) : (
-              convites.map((c) => {
+              convitesRecentes.map((c) => {
                 const disponivel = conviteDisponivel(c, agoraMs);
                 const statusLabel = c.usado
                   ? 'Utilizado'
@@ -285,7 +308,7 @@ export function ProfessorDocentesPage() {
                     variant="green"
                     size="sm"
                     carregando={aprovandoId === p.id}
-                    onClick={() => handleAprovar(p.id)}
+                    onClick={() => handleAprovar(p)}
                   >
                     Aprovar
                   </Button>

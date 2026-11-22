@@ -9,11 +9,14 @@ import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
+import { Combobox } from '@/components/ui/Combobox';
 import { ArrowLeft, Flag, CheckCircle, XCircle, ArrowRight, BookOpen } from 'lucide-react';
 
 export function AlunoPraticaPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   // Estados dos filtros
   const [cursos, setCursos] = useState<Curso[]>([]);
@@ -126,6 +129,20 @@ export function AlunoPraticaPage() {
     }
   }
 
+  async function handleSairDaPratica() {
+    // Só pergunta se já houve progresso na sessão.
+    if (indiceAtual > 0 || respondido) {
+      const ok = await confirmar({
+        titulo: 'Voltar para os filtros?',
+        mensagem: `Você está na questão ${indiceAtual + 1} de ${questoes.length}. As respostas já dadas ficam salvas, mas esta sequência recomeça do início.`,
+        rotuloConfirmar: 'Voltar aos filtros',
+        rotuloCancelar: 'Continuar praticando',
+      });
+      if (!ok) return;
+    }
+    setEmPratica(false);
+  }
+
   function handleProximaQuestao() {
     if (indiceAtual + 1 < questoes.length) {
       setIndiceAtual((i) => i + 1);
@@ -163,7 +180,7 @@ export function AlunoPraticaPage() {
         {/* Topo com navegação e tags */}
         <div className="flex items-center justify-between pb-2 border-b-2 border-ink">
           <button
-            onClick={() => setEmPratica(false)}
+            onClick={handleSairDaPratica}
             className="text-xs font-bold text-muted hover:text-ink flex items-center gap-1 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -345,22 +362,13 @@ export function AlunoPraticaPage() {
       </div>
 
       {/* Seletor de Curso */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold uppercase tracking-wider text-muted">
-          Curso
-        </label>
-        <select
-          value={cursoId}
-          onChange={(e) => handleTrocarCurso(e.target.value)}
-          className="w-full bg-paper text-ink border-[2.5px] border-ink rounded-xl px-3 py-2 font-bold text-xs cursor-pointer focus:outline-none"
-        >
-          {cursos.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nome}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Combobox
+        label="Curso"
+        tamanho="sm"
+        opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+        valor={cursoId}
+        aoMudar={handleTrocarCurso}
+      />
 
       {/* Chips de Ano */}
       <div className="flex flex-col gap-1.5">

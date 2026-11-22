@@ -5,9 +5,11 @@ import type { Turma, Atividade, Questao, StatusAtividade } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Combobox } from '@/components/ui/Combobox';
 import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
 import {
   Plus,
   ClipboardList,
@@ -27,9 +29,30 @@ const ROTULO_STATUS: Record<StatusAtividade, string> = {
   ENCERRADA: 'Encerrada'
 };
 
+type TipoAtividade = 'SIMULADO' | 'LISTA';
+
+/** Valor do campo de tentativas: '1' a '5' ou ilimitadas. */
+type OpcaoTentativas = string;
+const ILIMITADAS = 'ILIMITADAS';
+
+/** Mesmas regras da API (`TENTATIVAS_INVALIDAS`): lista de 1 a 5 ou ilimitadas; simulado 1 ou 2. */
+const MAX_TENTATIVAS: Record<TipoAtividade, number> = { LISTA: 5, SIMULADO: 2 };
+
+function opcoesTentativas(tipo: TipoAtividade) {
+  const numeros = Array.from({ length: MAX_TENTATIVAS[tipo] }, (_, i) => String(i + 1));
+  const opcoes = numeros.map((n) => ({ valor: n, rotulo: n === '1' ? '1 tentativa' : `${n} tentativas` }));
+  return tipo === 'LISTA' ? [...opcoes, { valor: ILIMITADAS, rotulo: 'Ilimitadas' }] : opcoes;
+}
+
+function rotuloTentativas(max: number | null) {
+  if (max === null) return 'Tentativas ilimitadas';
+  return max === 1 ? '1 tentativa' : `${max} tentativas`;
+}
+
 export function ProfessorAtividadesPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
   const { turmaSelecionada } = useOutletContext<ContextType>();
 
   const [atividades, setAtividades] = useState<Atividade[]>([]);
@@ -38,9 +61,9 @@ export function ProfessorAtividadesPage() {
   // Modal Nova Atividade
   const [modalAberta, setModalAberta] = useState(false);
   const [titulo, setTitulo] = useState('');
-  const [tipo, setTipo] = useState<'SIMULADO' | 'LISTA'>('SIMULADO');
+  const [tipo, setTipo] = useState<TipoAtividade>('SIMULADO');
   const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>(30);
-  const [permiteNovasTentativas, setPermiteNovasTentativas] = useState(false);
+  const [tentativas, setTentativas] = useState<OpcaoTentativas>('1');
   const [questoesBanco, setQuestoesBanco] = useState<Questao[]>([]);
   const [questoesSelecionadas, setQuestoesSelecionadas] = useState<string[]>([]);
   const [salvando, setSalvando] = useState(false);
@@ -78,6 +101,13 @@ export function ProfessorAtividadesPage() {
     );
   }
 
+  /** Ao trocar o tipo, mantém o limite se ele ainda for válido; senão volta para 1. */
+  function handleTrocarTipo(novo: TipoAtividade) {
+    setTipo(novo);
+    const valida = opcoesTentativas(novo).some((o) => o.valor === tentativas);
+    if (!valida) setTentativas('1');
+  }
+
   async function handleCriarAtividade(publicarImediatamente = false) {
     if (!turmaSelecionada) return;
     if (!titulo.trim()) {
@@ -89,13 +119,24 @@ export function ProfessorAtividadesPage() {
       return;
     }
 
+    if (
+      publicarImediatamente &&
+      !(await confirmar({
+        titulo: 'Criar e publicar atividade?',
+        mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turmaSelecionada.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
+        rotuloConfirmar: 'Publicar',
+      }))
+    ) {
+      return;
+    }
+
     setSalvando(true);
     try {
       const nova = await api.professor.criarAtividadeTurma(turmaSelecionada.id, {
         titulo: titulo.trim(),
         tipo,
         duracaoMinutos: duracaoMinutos !== '' ? Number(duracaoMinutos) : null,
-        maxTentativas: permiteNovasTentativas ? null : 1,
+        maxTentativas: tentativas === ILIMITADAS ? null : Number(tentativas),
         questaoIds: questoesSelecionadas
       });
 
@@ -118,6 +159,12 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handlePublicar(atv: Atividade) {
+    const ok = await confirmar({
+      titulo: 'Publicar atividade?',
+      mensagem: `"${atv.titulo}" fica disponível para os alunos na hora. Depois de publicada, não pode mais ser alterada.`,
+      rotuloConfirmar: 'Publicar',
+    });
+    if (!ok) return;
     try {
       await api.professor.publicarAtividade(atv.id);
       toast('Atividade publicada com sucesso!');
@@ -128,6 +175,13 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handleEncerrar(atv: Atividade) {
+    const ok = await confirmar({
+      titulo: 'Encerrar atividade?',
+      mensagem: `"${atv.titulo}" deixa de aceitar respostas, inclusive de quem está fazendo agora. Uma atividade encerrada não pode ser reaberta.`,
+      rotuloConfirmar: 'Encerrar',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.professor.encerrarAtividade(atv.id);
       toast('Atividade encerrada.');
@@ -138,7 +192,13 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handleExcluir(atv: Atividade) {
-    if (!confirm(`Deseja excluir a atividade "${atv.titulo}"?`)) return;
+    const ok = await confirmar({
+      titulo: 'Excluir rascunho?',
+      mensagem: `O rascunho "${atv.titulo}" será apagado. Essa ação não pode ser desfeita.`,
+      rotuloConfirmar: 'Excluir',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.professor.excluirAtividade(atv.id);
       toast('Atividade excluída.');
@@ -202,7 +262,7 @@ export function ProfessorAtividadesPage() {
                       <span>•</span>
                       <span>{atv.duracaoMinutos ? `${atv.duracaoMinutos} min` : 'Sem tempo'}</span>
                       <span>•</span>
-                      <span>{atv.maxTentativas === null ? 'Novas tentativas permitidas' : `${atv.maxTentativas} tentativa`}</span>
+                      <span>{rotuloTentativas(atv.maxTentativas)}</span>
                     </div>
                   </div>
                 </div>
@@ -280,17 +340,15 @@ export function ProfessorAtividadesPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted">
-                Tipo
-              </label>
-              <select
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as any)}
-                className="w-full bg-paper border-[2.5px] border-ink rounded-xl px-3 py-2 text-xs font-bold"
-              >
-                <option value="SIMULADO">Simulado (Avaliativo)</option>
-                <option value="LISTA">Lista de Exercícios (Treino)</option>
-              </select>
+              <Combobox
+                label="Tipo"
+                opcoes={[
+                  { valor: 'SIMULADO', rotulo: 'Simulado (Avaliativo)' },
+                  { valor: 'LISTA', rotulo: 'Lista de Exercícios (Treino)' },
+                ]}
+                valor={tipo}
+                aoMudar={handleTrocarTipo}
+              />
             </div>
 
             <Input
@@ -302,15 +360,20 @@ export function ProfessorAtividadesPage() {
             />
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink select-none">
-            <input
-              type="checkbox"
-              checked={permiteNovasTentativas}
-              onChange={(e) => setPermiteNovasTentativas(e.target.checked)}
-              className="w-4 h-4 accent-orange cursor-pointer"
+          <div className="flex flex-col gap-1">
+            <Combobox
+              label="Tentativas por aluno"
+              opcoes={opcoesTentativas(tipo)}
+              valor={tentativas}
+              aoMudar={setTentativas}
             />
-            Permitir que o aluno refaça a atividade em novas tentativas
-          </label>
+            <p className="text-xs text-muted">
+              {tipo === 'SIMULADO'
+                ? 'Simulado: no máximo 2 tentativas, sem opção ilimitada.'
+                : 'Lista: de 1 a 5 tentativas, ou ilimitadas.'}{' '}
+              No resultado vale a melhor tentativa de cada aluno.
+            </p>
+          </div>
 
           {/* Selecionador de Questões do Banco */}
           <div className="flex flex-col gap-1.5 mt-2">
