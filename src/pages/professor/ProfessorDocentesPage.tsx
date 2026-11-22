@@ -214,8 +214,7 @@ export function ProfessorDocentesPage() {
           {/* Histórico de Convites */}
           <div className="flex flex-col gap-2 mt-1">
             <span className="text-xs font-bold uppercase tracking-wider text-muted">
-              Últimos convites ({convitesRecentes.length}
-              {convites.length > LIMITE_HISTORICO_CONVITES ? ` de ${convites.length}` : ''})
+              Últimos convites ({convitesRecentes.length})
             </span>
 
             {convitesRecentes.length === 0 ? (
