@@ -45,7 +45,9 @@ export type ResultadosAtividade = Schemas['ResultadosAtividadeResponse'];
 export type ResultadoAluno = Schemas['ResultadoAluno'];
 
 export type Sinalizacao = Schemas['SinalizacaoResponse'];
-export type Convite = Schemas['ConviteResponse'];
+export type Convite = Schemas['ConviteResponse'] & {
+  invalidado?: boolean;
+  invalidadoEm?: string | null;
+};
 export type ConviteCriado = Schemas['ConviteCriadoResponse'];
 export type ProfessorPendente = Schemas['ProfessorPendenteResponse'];
-

@@ -538,7 +538,11 @@ export const api = {
         method: 'POST'
       });
     },
-
+invalidarConvite(conviteId: string): Promise<Convite> {
+      return request<Convite>(`/professor/convites/${conviteId}/invalidar`, {
+        method: 'POST'
+      });
+    },
     obterProfessoresPendentes(): Promise<ProfessorPendente[]> {
       return request<ProfessorPendente[]>('/professor/professores/pendentes');
     },
