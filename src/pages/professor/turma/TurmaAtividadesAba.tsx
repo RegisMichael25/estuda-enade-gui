@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { Turma, Atividade, Questao, StatusAtividade } from '@/api/models';
+import type { Atividade, Questao, StatusAtividade } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Combobox } from '@/components/ui/Combobox';
 import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
+import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import {
@@ -18,10 +19,7 @@ import {
   Lock,
   FileCheck
 } from 'lucide-react';
-
-interface ContextType {
-  turmaSelecionada: Turma | null;
-}
+import { useTurma } from './ProfessorTurmaPage';
 
 const ROTULO_STATUS: Record<StatusAtividade, string> = {
   RASCUNHO: 'Rascunho',
@@ -49,11 +47,12 @@ function rotuloTentativas(max: number | null) {
   return max === 1 ? '1 tentativa' : `${max} tentativas`;
 }
 
-export function ProfessorAtividadesPage() {
+export function TurmaAtividadesAba() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const confirmar = useConfirmacao();
-  const { turmaSelecionada } = useOutletContext<ContextType>();
+  const { turma } = useTurma();
+  const arquivada = !!turma.arquivadaEm;
 
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -62,17 +61,19 @@ export function ProfessorAtividadesPage() {
   const [modalAberta, setModalAberta] = useState(false);
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoAtividade>('SIMULADO');
-  const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>(30);
+  const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>('');
   const [tentativas, setTentativas] = useState<OpcaoTentativas>('1');
   const [questoesBanco, setQuestoesBanco] = useState<Questao[]>([]);
   const [questoesSelecionadas, setQuestoesSelecionadas] = useState<string[]>([]);
+  // Começa no curso da turma, quando ela tem um
+  const [filtroQuestoes, setFiltroQuestoes] = useState<ValorFiltroQuestoes>(filtroVazio(turma.curso?.id ?? ''));
+  const [totalQuestoesBanco, setTotalQuestoesBanco] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   async function carregarAtividades() {
-    if (!turmaSelecionada) return;
     setCarregando(true);
     try {
-      const lista = await api.professor.obterAtividadesTurma(turmaSelecionada.id);
+      const lista = await api.professor.obterAtividadesTurma(turma.id);
       setAtividades(lista);
     } catch (err) {
       console.error('Erro ao carregar atividades:', err);
@@ -83,17 +84,40 @@ export function ProfessorAtividadesPage() {
 
   useEffect(() => {
     carregarAtividades();
-  }, [turmaSelecionada]);
+  }, [turma.id]);
 
-  async function abrirModalCriar() {
+  function abrirModalCriar() {
     setModalAberta(true);
-    try {
-      const res = await api.professor.obterQuestoes({ status: 'PUBLICADA', tamanho: 50 });
-      setQuestoesBanco(res.itens);
-    } catch (err) {
-      console.error(err);
-    }
   }
+
+  // Só questões publicadas entram em atividade; a lista segue o filtro em etapas
+  useEffect(() => {
+    if (!modalAberta) return;
+    if (!filtroQuestoes.cursoId) {
+      setQuestoesBanco([]);
+      setTotalQuestoesBanco(null);
+      return;
+    }
+    let ativo = true;
+    api.professor
+      .obterQuestoes({
+        status: 'PUBLICADA',
+        cursoId: filtroQuestoes.cursoId,
+        temaId: filtroQuestoes.temaId ?? undefined,
+        ano: filtroQuestoes.ano ?? undefined,
+        busca: filtroQuestoes.busca || undefined,
+        tamanho: 50
+      })
+      .then((res) => {
+        if (!ativo) return;
+        setQuestoesBanco(res.itens);
+        setTotalQuestoesBanco(res.total);
+      })
+      .catch((err) => console.error(err));
+    return () => {
+      ativo = false;
+    };
+  }, [modalAberta, filtroQuestoes]);
 
   function alternarSelecaoQuestao(qId: string) {
     setQuestoesSelecionadas((prev) =>
@@ -109,7 +133,6 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handleCriarAtividade(publicarImediatamente = false) {
-    if (!turmaSelecionada) return;
     if (!titulo.trim()) {
       toast('Informe o título da atividade.');
       return;
@@ -123,7 +146,7 @@ export function ProfessorAtividadesPage() {
       publicarImediatamente &&
       !(await confirmar({
         titulo: 'Criar e publicar atividade?',
-        mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turmaSelecionada.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
+        mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turma.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
         rotuloConfirmar: 'Publicar',
       }))
     ) {
@@ -132,7 +155,7 @@ export function ProfessorAtividadesPage() {
 
     setSalvando(true);
     try {
-      const nova = await api.professor.criarAtividadeTurma(turmaSelecionada.id, {
+      const nova = await api.professor.criarAtividadeTurma(turma.id, {
         titulo: titulo.trim(),
         tipo,
         duracaoMinutos: duracaoMinutos !== '' ? Number(duracaoMinutos) : null,
@@ -208,24 +231,21 @@ export function ProfessorAtividadesPage() {
     }
   }
 
-  if (!turmaSelecionada) return null;
-
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold font-title text-ink">
-            Atividades & Simulados
-          </h1>
-          <p className="text-xs lg:text-sm text-muted">
-            Turma: <b>{turmaSelecionada.nome}</b> · Listas de treino e simulados avaliativos.
-          </p>
-        </div>
+        <p className="text-xs lg:text-sm text-muted">
+          {arquivada
+            ? 'Turma arquivada: não recebe novas atividades. O histórico continua disponível.'
+            : 'Listas de treino e simulados avaliativos desta turma.'}
+        </p>
 
-        <Button variant="primary" size="md" onClick={abrirModalCriar}>
-          <Plus className="w-4 h-4" />
-          Nova atividade
-        </Button>
+        {!arquivada && (
+          <Button variant="primary" size="md" onClick={abrirModalCriar}>
+            <Plus className="w-4 h-4" />
+            Nova atividade
+          </Button>
+        )}
       </div>
 
       {/* Lista de Atividades */}
@@ -239,9 +259,11 @@ export function ProfessorAtividadesPage() {
             <p className="text-sm font-bold text-muted">
               Nenhuma atividade cadastrada para esta turma.
             </p>
-            <Button variant="primary" size="sm" onClick={abrirModalCriar} className="mt-3">
-              + Criar primeira atividade
-            </Button>
+            {!arquivada && (
+              <Button variant="primary" size="sm" onClick={abrirModalCriar} className="mt-3">
+                + Criar primeira atividade
+              </Button>
+            )}
           </Card>
         ) : (
           atividades.map((atv) => (
@@ -288,7 +310,7 @@ export function ProfessorAtividadesPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => navigate(`/professor/atividades/${atv.id}/resultados`)}
+                    onClick={() => navigate(`/professor/turmas/${turma.id}/resultados/${atv.id}`)}
                   >
                     <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
                     Ver resultados
@@ -296,7 +318,7 @@ export function ProfessorAtividadesPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {atv.status === 'RASCUNHO' && (
+                  {atv.status === 'RASCUNHO' && !arquivada && (
                     <Button variant="green" size="sm" onClick={() => handlePublicar(atv)}>
                       <CheckCircle className="w-3.5 h-3.5" />
                       Publicar
@@ -383,10 +405,23 @@ export function ProfessorAtividadesPage() {
               </span>
             </div>
 
+            <FiltroQuestoes
+              valor={filtroQuestoes}
+              aoMudar={setFiltroQuestoes}
+              obterAnos={api.professor.obterAnosBanco}
+              total={totalQuestoesBanco}
+              layout="compacto"
+              className="shadow-none"
+            />
+
             <div className="max-h-56 overflow-y-auto border-2 border-ink rounded-xl bg-bg p-2 flex flex-col gap-2">
-              {questoesBanco.length === 0 ? (
+              {!filtroQuestoes.cursoId ? (
                 <p className="text-xs text-muted text-center p-4">
-                  Nenhuma questão publicada disponível no banco para selecionar.
+                  Escolha o curso e clique em Filtrar para ver as questões publicadas.
+                </p>
+              ) : questoesBanco.length === 0 ? (
+                <p className="text-xs text-muted text-center p-4">
+                  Nenhuma questão publicada com esses filtros.
                 </p>
               ) : (
                 questoesBanco.map((q) => {

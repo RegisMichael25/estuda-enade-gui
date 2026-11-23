@@ -7,17 +7,20 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
-import { Users, ClipboardList, ArrowRight } from 'lucide-react';
+import { useConfirmacao } from '@/components/ui/Confirmacao';
+import { Users, ClipboardList, ArrowRight, LogOut } from 'lucide-react';
 
 export function AlunoTurmasPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const confirmar = useConfirmacao();
 
   const [turmas, setTurmas] = useState<TurmaAluno[]>([]);
   const [atividades, setAtividades] = useState<AtividadeAluno[]>([]);
   const [codigoTurma, setCodigoTurma] = useState('');
   const [entrandoTurma, setEntrandoTurma] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [saindoId, setSaindoId] = useState<string | null>(null);
 
   async function carregarDados() {
     try {
@@ -52,6 +55,26 @@ export function AlunoTurmasPage() {
       toast(err.mensagem || 'Código de turma inválido ou expirado.');
     } finally {
       setEntrandoTurma(false);
+    }
+  }
+
+  async function handleSairDaTurma(turma: TurmaAluno) {
+    const ok = await confirmar({
+      titulo: `Sair da turma "${turma.nome}"?`,
+      mensagem: 'Você deixa de ver as atividades desta turma. Seus resultados continuam guardados. Para voltar, vai precisar do código de convite do professor.',
+      rotuloConfirmar: 'Sair da turma',
+      perigo: true,
+    });
+    if (!ok) return;
+    setSaindoId(turma.id);
+    try {
+      await api.aluno.sairDaTurma(turma.id);
+      toast(`Você saiu da turma ${turma.nome}.`);
+      await carregarDados();
+    } catch (err: any) {
+      toast(err.mensagem || 'Não foi possível sair da turma.');
+    } finally {
+      setSaindoId(null);
     }
   }
 
@@ -147,6 +170,18 @@ export function AlunoTurmasPage() {
                     </button>
                   ))
                 )}
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  carregando={saindoId === t.id}
+                  onClick={() => handleSairDaTurma(t)}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sair da turma
+                </Button>
               </div>
             </Card>
           );

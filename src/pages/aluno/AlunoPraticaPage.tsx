@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { Curso, Tema, QuestaoAluno, Gabarito } from '@/api/models';
+import type { QuestaoAluno, Gabarito } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Chip } from '@/components/ui/Chip';
+import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
 import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { Combobox } from '@/components/ui/Combobox';
 import { ArrowLeft, Flag, CheckCircle, XCircle, ArrowRight, BookOpen } from 'lucide-react';
 
 export function AlunoPraticaPage() {
@@ -19,12 +18,7 @@ export function AlunoPraticaPage() {
   const confirmar = useConfirmacao();
 
   // Estados dos filtros
-  const [cursos, setCursos] = useState<Curso[]>([]);
-  const [cursoId, setCursoId] = useState<string>('');
-  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
-  const [anoSelecionado, setAnoSelecionado] = useState<number | null>(null);
-  const [temasDisponiveis, setTemasDisponiveis] = useState<Tema[]>([]);
-  const [temaSelecionado, setTemaSelecionado] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(filtroVazio());
 
   // Estados da prática
   const [emPratica, setEmPratica] = useState(false);
@@ -41,35 +35,19 @@ export function AlunoPraticaPage() {
   const [motivoSinalizacao, setMotivoSinalizacao] = useState('');
   const [enviandoSinalizacao, setEnviandoSinalizacao] = useState(false);
 
-  // Carregar dados de cursos, anos e temas
-  useEffect(() => {
-    async function carregarFiltros() {
-      try {
-        const [listaCursos, listaAnos, listaTemas] = await Promise.all([
-          api.catalogo.obterCursos(),
-          api.aluno.obterAnosPratica(),
-          api.catalogo.obterTemas()
-        ]);
-        setCursos(listaCursos);
-        setAnosDisponiveis(listaAnos);
-        setTemasDisponiveis(listaTemas);
-        if (listaCursos.length > 0) setCursoId(listaCursos[0].id);
-      } catch (err) {
-        console.error('Erro ao carregar catálogo para prática:', err);
-      }
-    }
-    carregarFiltros();
-  }, []);
-
   // Atualizar contagem prévia de questões encontradas
   useEffect(() => {
     async function contarQuestoes() {
-      if (!cursoId) return;
+      if (!filtro.cursoId) {
+        setTotalQuestoes(0);
+        return;
+      }
       try {
         const res = await api.aluno.obterQuestoesPratica({
-          cursoId,
-          ano: anoSelecionado ?? undefined,
-          temaId: temaSelecionado ?? undefined,
+          cursoId: filtro.cursoId,
+          ano: filtro.ano ?? undefined,
+          busca: filtro.busca || undefined,
+          temaId: filtro.temaId ?? undefined,
           tamanho: 1
         });
         setTotalQuestoes(res.total);
@@ -78,19 +56,15 @@ export function AlunoPraticaPage() {
       }
     }
     contarQuestoes();
-  }, [cursoId, anoSelecionado, temaSelecionado]);
-
-  function handleTrocarCurso(novoCursoId: string) {
-    setCursoId(novoCursoId);
-    setTemaSelecionado(null);
-  }
+  }, [filtro]);
 
   async function handleIniciarPratica() {
     try {
       const res = await api.aluno.obterQuestoesPratica({
-        cursoId,
-        ano: anoSelecionado ?? undefined,
-        temaId: temaSelecionado ?? undefined,
+        cursoId: filtro.cursoId,
+        ano: filtro.ano ?? undefined,
+        busca: filtro.busca || undefined,
+        temaId: filtro.temaId ?? undefined,
         tamanho: 50
       });
 
@@ -361,79 +335,26 @@ export function AlunoPraticaPage() {
         </p>
       </div>
 
-      {/* Seletor de Curso */}
-      <Combobox
-        label="Curso"
-        tamanho="sm"
-        opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
-        valor={cursoId}
-        aoMudar={handleTrocarCurso}
-      />
-
-      {/* Chips de Ano */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold uppercase tracking-wider text-muted">
-          Ano do ENADE
-        </label>
-        <div className="flex gap-2 flex-wrap">
-          <Chip
-            active={anoSelecionado === null}
-            onClick={() => setAnoSelecionado(null)}
-          >
-            Todos
-          </Chip>
-          {anosDisponiveis.map((ano) => (
-            <Chip
-              key={ano}
-              active={anoSelecionado === ano}
-              onClick={() => setAnoSelecionado(ano)}
-            >
-              {ano}
-            </Chip>
-          ))}
-        </div>
-      </div>
-
-      {/* Chips de Tema */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold uppercase tracking-wider text-muted">
-          Tema / Matéria
-        </label>
-        <div className="flex gap-2 flex-wrap">
-          <Chip
-            active={temaSelecionado === null}
-            onClick={() => setTemaSelecionado(null)}
-          >
-            Todos
-          </Chip>
-          {temasDisponiveis.map((tema) => (
-            <Chip
-              key={tema.id}
-              active={temaSelecionado === tema.id}
-              onClick={() => setTemaSelecionado(tema.id)}
-            >
-              {tema.nome}
-            </Chip>
-          ))}
-        </div>
-      </div>
+      <FiltroQuestoes valor={filtro} aoMudar={setFiltro} obterAnos={api.aluno.obterAnosPratica} layout="compacto" />
 
       {/* Card de Contagem de Questões */}
-      <Card color="yellow" className="p-3.5 mt-2 flex items-center justify-between">
-        <div>
-          <span className="text-xs font-bold text-ink/80 block">Disponíveis</span>
-          <span className="text-lg font-title font-extrabold text-ink">
-            {totalQuestoes} questões encontradas
-          </span>
-        </div>
-        <BookOpen className="w-6 h-6 text-ink/70" />
-      </Card>
+      {filtro.cursoId && (
+        <Card color="yellow" className="p-3.5 mt-2 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-bold text-ink/80 block">Disponíveis</span>
+            <span className="text-lg font-title font-extrabold text-ink">
+              {totalQuestoes} questões encontradas
+            </span>
+          </div>
+          <BookOpen className="w-6 h-6 text-ink/70" />
+        </Card>
+      )}
 
       <Button
         variant="primary"
         size="lg"
         fullWidth
-        disabled={totalQuestoes === 0}
+        disabled={!filtro.cursoId || totalQuestoes === 0}
         onClick={handleIniciarPratica}
       >
         Começar a praticar
