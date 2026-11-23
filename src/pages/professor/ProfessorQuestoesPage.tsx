@@ -9,7 +9,7 @@ import { Tag, Badge } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { Plus, Flag, EyeOff, Check, Pencil } from 'lucide-react';
+import { Plus, Flag, EyeOff, Check, Pencil, Trash2 } from 'lucide-react';
 
 export function ProfessorQuestoesPage() {
   const navigate = useNavigate();
@@ -90,6 +90,23 @@ export function ProfessorQuestoesPage() {
       await carregar();
     } catch (err: any) {
       toast(err.mensagem || 'Erro ao ocultar questão.');
+    }
+  }
+
+  async function handleExcluirQuestao(q: Questao) {
+    const ok = await confirmar({
+      titulo: 'Excluir rascunho de questão?',
+      mensagem: 'O rascunho desta questão será apagado. Essa ação não pode ser desfeita.',
+      rotuloConfirmar: 'Excluir',
+      perigo: true,
+    });
+    if (!ok) return;
+    try {
+      await api.professor.excluirQuestao(q.id);
+      toast('Questão excluída.');
+      await carregar();
+    } catch (err: any) {
+      toast(err.mensagem || 'Erro ao excluir questão.');
     }
   }
 
@@ -247,6 +264,16 @@ export function ProfessorQuestoesPage() {
                       >
                         <Check className="w-3.5 h-3.5" />
                         Publicar
+                      </Button>
+                    )}
+
+                    {q.minha && q.status === 'RASCUNHO' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleExcluirQuestao(q)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-pink" />
                       </Button>
                     )}
 
