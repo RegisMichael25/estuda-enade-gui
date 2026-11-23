@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { Curso, Tema } from '@/api/models';
 import { Card } from '@/components/ui/Card';
@@ -21,11 +21,12 @@ export function ProfessorNovaQuestaoPage() {
   const editando = !!id;
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const confirmar = useConfirmacao();
 
   const [cursos, setCursos] = useState<Curso[]>([]);
-  const [cursoId, setCursoId] = useState<string>('');
+  const [cursoId, setCursoId] = useState<string>(() => (location.state as any)?.cursoId || '');
   const [temas, setTemas] = useState<Tema[]>([]);
   const [temaId, setTemaId] = useState<string>('');
   const [carregandoTemas, setCarregandoTemas] = useState(false);
@@ -195,7 +196,7 @@ export function ProfessorNovaQuestaoPage() {
         }
       }
 
-      navigate('/professor/questoes');
+      navigate(`/professor/questoes?cursoId=${encodeURIComponent(cursoId)}`, { state: { cursoId } });
     } catch (err: any) {
       toast(err.mensagem || (editando ? 'Erro ao atualizar questão.' : 'Erro ao salvar questão.'));
     } finally {
@@ -221,7 +222,9 @@ export function ProfessorNovaQuestaoPage() {
     ) {
       return;
     }
-    navigate('/professor/questoes');
+    navigate(cursoId ? `/professor/questoes?cursoId=${encodeURIComponent(cursoId)}` : '/professor/questoes', {
+      state: { cursoId }
+    });
   }
 
   return (
