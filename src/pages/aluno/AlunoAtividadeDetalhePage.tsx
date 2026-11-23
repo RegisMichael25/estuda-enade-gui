@@ -4,6 +4,7 @@ import { api } from '@/api/client';
 import type { AtividadeAluno } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
@@ -95,11 +96,27 @@ export function AlunoAtividadeDetalhePage() {
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold font-title text-ink">{atividade.titulo}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold font-title text-ink">{atividade.titulo}</h2>
+          {atividade.status === 'ENCERRADA' && (
+            <Tag color="paper">Encerrada</Tag>
+          )}
+        </div>
         <p className="text-xs text-muted mt-1">
           {atividade.tipo === 'SIMULADO' ? 'Simulado oficial' : 'Lista de exercícios'}
         </p>
       </div>
+
+      {atividade.status === 'ENCERRADA' && (
+        <Card className="p-3.5 bg-paper border-2 border-ink">
+          <div className="flex items-center gap-2 text-ink">
+            <AlertTriangle className="w-4 h-4 text-orange flex-none" />
+            <p className="text-xs font-bold">
+              Esta atividade foi encerrada pelo professor e não aceita novos envios ou tentativas.
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Grid de Informações Chave */}
       <div className="grid grid-cols-3 gap-2.5">
@@ -161,7 +178,13 @@ export function AlunoAtividadeDetalhePage() {
         disabled={!atividade.podeIniciar}
         onClick={handleIniciar}
       >
-        {atividade.podeIniciar ? 'Iniciar atividade' : 'Tentativas esgotadas'}
+        {atividade.status === 'ENCERRADA'
+          ? 'Atividade encerrada'
+          : atividade.tentativaAbertaId
+            ? 'Continuar tentativa'
+            : atividade.podeIniciar
+              ? 'Iniciar atividade'
+              : 'Tentativas esgotadas'}
       </Button>
     </div>
   );
