@@ -1,4 +1,6 @@
 import type {
+  Comentario,
+  Mural,
   Usuario,
   Sessao,
   Turma,
@@ -291,6 +293,31 @@ export const api = {
       return request<TentativaEstado[]>('/aluno/tentativas');
     },
 
+    // Mural de comentários da atividade
+    obterMural(atividadeId: string): Promise<Mural> {
+      return request<Mural>(`/aluno/atividades/${atividadeId}/comentarios`);
+    },
+
+    comentar(atividadeId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/aluno/atividades/${atividadeId}/comentarios`, {
+        method: 'POST',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    editarComentario(comentarioId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/aluno/comentarios/${comentarioId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    apagarComentario(comentarioId: string): Promise<void> {
+      return request<void>(`/aluno/comentarios/${comentarioId}`, {
+        method: 'DELETE'
+      });
+    },
+
     obterAnosPratica(): Promise<number[]> {
       return request<number[]>('/aluno/pratica/anos');
     },
@@ -475,6 +502,31 @@ export const api = {
 
     obterResultadosAtividade(atividadeId: string): Promise<ResultadosAtividade> {
       return request<ResultadosAtividade>(`/professor/atividades/${atividadeId}/resultados`);
+    },
+
+    // Mural de comentários da atividade
+    obterMural(atividadeId: string): Promise<Mural> {
+      return request<Mural>(`/professor/atividades/${atividadeId}/comentarios`);
+    },
+
+    comentar(atividadeId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/professor/atividades/${atividadeId}/comentarios`, {
+        method: 'POST',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    editarComentario(comentarioId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/professor/comentarios/${comentarioId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    apagarComentario(comentarioId: string): Promise<void> {
+      return request<void>(`/professor/comentarios/${comentarioId}`, {
+        method: 'DELETE'
+      });
     },
 
     obterQuestoes(params?: {

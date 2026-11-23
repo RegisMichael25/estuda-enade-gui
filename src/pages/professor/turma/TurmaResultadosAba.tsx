@@ -7,6 +7,7 @@ import { ProgressMeter } from '@/components/ui/Tag';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
 import { Combobox } from '@/components/ui/Combobox';
+import { MuralComentarios } from '@/components/MuralComentarios';
 import { useTurma } from './ProfessorTurmaPage';
 
 export function TurmaResultadosAba() {
@@ -227,6 +228,8 @@ export function TurmaResultadosAba() {
               </table>
             </div>
           </Card>
+
+          <MuralComentarios key={atividadeIdAtiva} atividadeId={atividadeIdAtiva} papel="professor" />
         </div>
       )}
     </div>

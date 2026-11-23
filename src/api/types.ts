@@ -588,6 +588,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/professor/atividades/{atividadeId}/comentarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mural de comentários da atividade
+         * @description Só o professor da turma. Comentários em ordem de envio.
+         */
+        get: operations["muralDaAtividade"];
+        put?: never;
+        /**
+         * Publica um comentário no mural
+         * @description Turma arquivada não recebe comentários (`TURMA_ARQUIVADA`).
+         */
+        post: operations["comentarNaAtividade"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/professor/comentarios/{comentarioId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edita o próprio comentário
+         * @description Só o autor edita (`ACESSO_NEGADO`). Turma arquivada não aceita edição (`TURMA_ARQUIVADA`).
+         */
+        put: operations["editarComentario"];
+        post?: never;
+        /**
+         * Apaga um comentário
+         * @description O professor da turma apaga qualquer comentário do mural, inclusive com a turma arquivada.
+         */
+        delete: operations["apagarComentario"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/aluno/turmas/entrar": {
         parameters: {
             query?: never;
@@ -779,6 +827,54 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/atividades/{atividadeId}/comentarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mural de comentários da atividade
+         * @description Aberto à turma, mas só para o aluno que já enviou ao menos uma tentativa da atividade; antes disso, 404.
+         */
+        get: operations["muralDaAtividadeComoAluno"];
+        put?: never;
+        /**
+         * Publica um comentário no mural
+         * @description Turma arquivada não recebe comentários (`TURMA_ARQUIVADA`).
+         */
+        post: operations["comentarNaAtividadeComoAluno"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/comentarios/{comentarioId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edita o próprio comentário
+         * @description Só o autor edita (`ACESSO_NEGADO`). Turma arquivada não aceita edição (`TURMA_ARQUIVADA`).
+         */
+        put: operations["editarComentarioComoAluno"];
+        post?: never;
+        /**
+         * Apaga um comentário
+         * @description O aluno apaga só o que escreveu (`ACESSO_NEGADO`).
+         */
+        delete: operations["apagarComentarioComoAluno"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1429,6 +1525,29 @@ export interface components {
             turmas: components["schemas"]["PainelTurma"][];
             /** @description As 6 publicadas mais recentes. */
             atividades: components["schemas"]["AtividadeRecentePainel"][];
+        };
+        ComentarioRequest: {
+            texto: string;
+        };
+        ComentarioResponse: {
+            /** Format: uuid */
+            id: string;
+            texto: string;
+            autor: components["schemas"]["ItemResponse"];
+            papelAutor: components["schemas"]["Papel"];
+            /** Format: date-time */
+            criadoEm: string;
+            /** Format: date-time */
+            editadoEm: string | null;
+            /** @description Escrito por quem fez a requisição. */
+            meu: boolean;
+            podeEditar: boolean;
+            podeApagar: boolean;
+        };
+        MuralResponse: {
+            /** @description Falso com a turma arquivada (mural só para leitura) ou com a atividade em rascunho. */
+            podeComentar: boolean;
+            comentarios: components["schemas"]["ComentarioResponse"][];
         };
     };
     responses: {
@@ -3093,6 +3212,194 @@ export interface operations {
             default: components["responses"]["Erro"];
         };
     };
+    muralDaAtividade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                atividadeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MuralResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    comentarNaAtividade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                atividadeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComentarioRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComentarioResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    editarComentario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comentarioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComentarioRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComentarioResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    apagarComentario: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comentarioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sem conteúdo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
     entrarNaTurma: {
         parameters: {
             query?: never;
@@ -3540,6 +3847,194 @@ export interface operations {
             };
             /** @description Regra de negócio violada; veja `codigo`. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    muralDaAtividadeComoAluno: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                atividadeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MuralResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    comentarNaAtividadeComoAluno: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                atividadeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComentarioRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComentarioResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    editarComentarioComoAluno: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comentarioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComentarioRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComentarioResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    apagarComentarioComoAluno: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comentarioId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sem conteúdo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
