@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { formatarTempo } from '@/lib/utils';
 import { Clock, Send, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
 
 export function AlunoTentativaPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ export function AlunoTentativaPage() {
   const [salvandoResposta, setSalvandoResposta] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [modalSinalizarAberto, setModalSinalizarAberto] = useState(false);
 
   const enviadoRef = useRef(false);
 
@@ -199,6 +201,14 @@ export function AlunoTentativaPage() {
       {/* Questão Atual */}
       {qAtual && (
         <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between text-xs font-bold text-muted">
+            <span>Questão {indiceAtual + 1} de {totalQuestoes}</span>
+            <BotaoSinalizar
+              onClick={() => setModalSinalizarAberto(true)}
+              title="Sinalizar problema nesta questão"
+            />
+          </div>
+
           <Card className="p-4 bg-paper">
             <p className="text-sm font-medium text-ink leading-relaxed whitespace-pre-wrap">
               {qAtual.enunciado}
@@ -270,6 +280,14 @@ export function AlunoTentativaPage() {
           </Button>
         )}
       </div>
+
+      {/* Modal de Sinalização com limite de tamanho */}
+      <ModalSinalizarQuestao
+        aberto={modalSinalizarAberto}
+        aoFechar={() => setModalSinalizarAberto(false)}
+        questaoId={qAtual?.id ?? null}
+        papel="aluno"
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
 import { MuralComentarios } from '@/components/MuralComentarios';
 import { CheckCircle2, XCircle, ArrowLeft, ChevronDown, ChevronUp, Home } from 'lucide-react';
+import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
 
 export function AlunoResultadoPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,8 @@ export function AlunoResultadoPage() {
   const [resultado, setResultado] = useState<ResultadoTentativa | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
+  const [modalSinalizarAberto, setModalSinalizarAberto] = useState(false);
+  const [questaoSinalizarId, setQuestaoSinalizarId] = useState<string | null>(null);
 
   useEffect(() => {
     async function carregar() {
@@ -150,11 +153,21 @@ export function AlunoResultadoPage() {
                   </div>
                 </div>
 
-                {aberto ? (
-                  <ChevronUp className="w-4 h-4 text-muted flex-none" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-muted flex-none" />
-                )}
+                <div className="flex items-center gap-1.5 flex-none">
+                  <BotaoSinalizar
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQuestaoSinalizarId(q.id);
+                      setModalSinalizarAberto(true);
+                    }}
+                    title="Sinalizar problema nesta questão ou gabarito"
+                  />
+                  {aberto ? (
+                    <ChevronUp className="w-4 h-4 text-muted flex-none" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted flex-none" />
+                  )}
+                </div>
               </div>
 
               {aberto && (
@@ -223,6 +236,17 @@ export function AlunoResultadoPage() {
         <Home className="w-4 h-4" />
         Voltar ao início
       </Button>
+
+      {/* Modal de Sinalização com limite de tamanho */}
+      <ModalSinalizarQuestao
+        aberto={modalSinalizarAberto}
+        aoFechar={() => {
+          setModalSinalizarAberto(false);
+          setQuestaoSinalizarId(null);
+        }}
+        questaoId={questaoSinalizarId}
+        papel="aluno"
+      />
     </div>
   );
 }
