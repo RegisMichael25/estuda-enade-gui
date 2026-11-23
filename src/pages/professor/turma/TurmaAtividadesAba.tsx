@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { Atividade, Questao, StatusAtividade } from '@/api/models';
@@ -17,7 +17,8 @@ import {
   CheckCircle,
   Trash2,
   Lock,
-  FileCheck
+  FileCheck,
+  Pencil
 } from 'lucide-react';
 import { useTurma } from './ProfessorTurmaPage';
 
@@ -57,16 +58,21 @@ export function TurmaAtividadesAba() {
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Modal Nova Atividade
+  // Modal Atividade (Criar ou Editar)
   const [modalAberta, setModalAberta] = useState(false);
+  const [atividadeEmEdicao, setAtividadeEmEdicao] = useState<Atividade | null>(null);
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoAtividade>('SIMULADO');
   const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>('');
   const [tentativas, setTentativas] = useState<OpcaoTentativas>('1');
   const [questoesBanco, setQuestoesBanco] = useState<Questao[]>([]);
+  const [questoesAtividade, setQuestoesAtividade] = useState<Questao[]>([]);
   const [questoesSelecionadas, setQuestoesSelecionadas] = useState<string[]>([]);
+  const [carregandoQuestoes, setCarregandoQuestoes] = useState(false);
   // Começa no curso da turma, quando ela tem um
-  const [filtroQuestoes, setFiltroQuestoes] = useState<ValorFiltroQuestoes>(filtroVazio(turma.curso?.id ?? ''));
+  const [filtroQuestoes, setFiltroQuestoes] = useState<ValorFiltroQuestoes>(
+    filtroVazio(turma.curso?.id ?? '')
+  );
   const [totalQuestoesBanco, setTotalQuestoesBanco] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -87,7 +93,56 @@ export function TurmaAtividadesAba() {
   }, [turma.id]);
 
   function abrirModalCriar() {
+    setAtividadeEmEdicao(null);
+    setTitulo('');
+    setTipo('SIMULADO');
+    setDuracaoMinutos('');
+    setTentativas('1');
+    setQuestoesSelecionadas([]);
+    setQuestoesAtividade([]);
+    setFiltroQuestoes(filtroVazio(turma.curso?.id ?? ''));
     setModalAberta(true);
+  }
+
+  async function abrirModalEditar(atv: Atividade) {
+    setAtividadeEmEdicao(atv);
+    setTitulo(atv.titulo);
+    setTipo(atv.tipo);
+    setDuracaoMinutos(atv.duracaoMinutos ?? '');
+    setTentativas(atv.maxTentativas === null ? ILIMITADAS : String(atv.maxTentativas));
+    setQuestoesSelecionadas([]);
+    setQuestoesAtividade([]);
+    setFiltroQuestoes(filtroVazio(turma.curso?.id ?? ''));
+    setModalAberta(true);
+    setCarregandoQuestoes(true);
+
+    try {
+      const detalhe = await api.professor.obterAtividade(atv.id);
+      setTitulo(detalhe.atividade.titulo);
+      setTipo(detalhe.atividade.tipo);
+      setDuracaoMinutos(detalhe.atividade.duracaoMinutos ?? '');
+      setTentativas(
+        detalhe.atividade.maxTentativas === null
+          ? ILIMITADAS
+          : String(detalhe.atividade.maxTentativas)
+      );
+      setQuestoesSelecionadas(detalhe.questoes.map((q) => q.id));
+      setQuestoesAtividade(detalhe.questoes);
+    } catch (err: any) {
+      console.error('Erro ao carregar detalhes do rascunho:', err);
+      toast(err?.mensagem || 'Erro ao carregar detalhes do rascunho.');
+    } finally {
+      setCarregandoQuestoes(false);
+    }
+  }
+
+  function fecharModal() {
+    if (salvando) return;
+    setModalAberta(false);
+    setAtividadeEmEdicao(null);
+    setTitulo('');
+    setQuestoesSelecionadas([]);
+    setQuestoesAtividade([]);
   }
 
   // Só questões publicadas entram em atividade; a lista segue o filtro em etapas
@@ -99,6 +154,7 @@ export function TurmaAtividadesAba() {
       return;
     }
     let ativo = true;
+    setCarregandoQuestoes(true);
     api.professor
       .obterQuestoes({
         status: 'PUBLICADA',
@@ -113,11 +169,21 @@ export function TurmaAtividadesAba() {
         setQuestoesBanco(res.itens);
         setTotalQuestoesBanco(res.total);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (ativo) setCarregandoQuestoes(false);
+      });
     return () => {
       ativo = false;
     };
   }, [modalAberta, filtroQuestoes]);
+
+  // Lista de questões combinadas: questões do banco pelo filtro + questões já pertencentes ao rascunho
+  const todasQuestoesExibidas = useMemo(() => {
+    const ids = new Set(questoesBanco.map((q) => q.id));
+    const extras = questoesAtividade.filter((q) => !ids.has(q.id));
+    return [...extras, ...questoesBanco];
+  }, [questoesBanco, questoesAtividade]);
 
   function alternarSelecaoQuestao(qId: string) {
     setQuestoesSelecionadas((prev) =>
@@ -132,7 +198,11 @@ export function TurmaAtividadesAba() {
     if (!valida) setTentativas('1');
   }
 
-  async function handleCriarAtividade(publicarImediatamente = false) {
+  async function handleSalvarAtividade(publicarImediatamente = false) {
+    if (arquivada) {
+      toast('Turma arquivada não pode receber alterações.');
+      return;
+    }
     if (!titulo.trim()) {
       toast('Informe o título da atividade.');
       return;
@@ -145,7 +215,7 @@ export function TurmaAtividadesAba() {
     if (
       publicarImediatamente &&
       !(await confirmar({
-        titulo: 'Criar e publicar atividade?',
+        titulo: atividadeEmEdicao ? 'Salvar e publicar atividade?' : 'Criar e publicar atividade?',
         mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turma.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
         rotuloConfirmar: 'Publicar',
       }))
@@ -155,27 +225,41 @@ export function TurmaAtividadesAba() {
 
     setSalvando(true);
     try {
-      const nova = await api.professor.criarAtividadeTurma(turma.id, {
+      const payload = {
         titulo: titulo.trim(),
         tipo,
         duracaoMinutos: duracaoMinutos !== '' ? Number(duracaoMinutos) : null,
         maxTentativas: tentativas === ILIMITADAS ? null : Number(tentativas),
         questaoIds: questoesSelecionadas
-      });
+      };
 
-      if (publicarImediatamente) {
-        await api.professor.publicarAtividade(nova.id);
-        toast('Atividade criada e publicada para os alunos!');
+      if (atividadeEmEdicao) {
+        await api.professor.atualizarAtividade(atividadeEmEdicao.id, payload);
+
+        if (publicarImediatamente) {
+          await api.professor.publicarAtividade(atividadeEmEdicao.id);
+          toast('Atividade salva e publicada para os alunos!');
+        } else {
+          toast('Rascunho atualizado com sucesso!');
+        }
       } else {
-        toast('Atividade salva como rascunho!');
+        const nova = await api.professor.criarAtividadeTurma(turma.id, payload);
+
+        if (publicarImediatamente) {
+          await api.professor.publicarAtividade(nova.id);
+          toast('Atividade criada e publicada para os alunos!');
+        } else {
+          toast('Atividade salva como rascunho!');
+        }
       }
 
-      setModalAberta(false);
-      setTitulo('');
-      setQuestoesSelecionadas([]);
+      fecharModal();
       await carregarAtividades();
     } catch (err: any) {
-      toast(err.mensagem || 'Erro ao criar atividade.');
+      toast(
+        err?.mensagem ||
+        (atividadeEmEdicao ? 'Erro ao atualizar rascunho.' : 'Erro ao criar atividade.')
+      );
     } finally {
       setSalvando(false);
     }
@@ -271,9 +355,8 @@ export function TurmaAtividadesAba() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-10 h-10 rounded-xl border-2 border-ink flex items-center justify-center text-ink flex-none shadow-brutal-sm ${
-                      atv.tipo === 'SIMULADO' ? 'bg-yellow' : 'bg-blue'
-                    }`}
+                    className={`w-10 h-10 rounded-xl border-2 border-ink flex items-center justify-center text-ink flex-none shadow-brutal-sm ${atv.tipo === 'SIMULADO' ? 'bg-yellow' : 'bg-blue'
+                      }`}
                   >
                     <ClipboardList className="w-5 h-5" />
                   </div>
@@ -295,8 +378,8 @@ export function TurmaAtividadesAba() {
                       atv.status === 'PUBLICADA'
                         ? 'green'
                         : atv.status === 'ENCERRADA'
-                        ? 'pink'
-                        : 'paper'
+                          ? 'pink'
+                          : 'paper'
                     }
                   >
                     {ROTULO_STATUS[atv.status]}
@@ -318,6 +401,17 @@ export function TurmaAtividadesAba() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {atv.status === 'RASCUNHO' && !arquivada && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => abrirModalEditar(atv)}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Editar
+                    </Button>
+                  )}
+
                   {atv.status === 'RASCUNHO' && !arquivada && (
                     <Button variant="green" size="sm" onClick={() => handlePublicar(atv)}>
                       <CheckCircle className="w-3.5 h-3.5" />
@@ -344,11 +438,11 @@ export function TurmaAtividadesAba() {
         )}
       </div>
 
-      {/* Modal Nova Atividade */}
+      {/* Modal Nova / Editar Atividade */}
       <Modal
         aberto={modalAberta}
-        aoFechar={() => setModalAberta(false)}
-        titulo="Criar Nova Atividade"
+        aoFechar={fecharModal}
+        titulo={atividadeEmEdicao ? 'Editar Rascunho' : 'Criar Nova Atividade'}
         className="max-w-2xl"
       >
         <div className="flex flex-col gap-4">
@@ -415,30 +509,33 @@ export function TurmaAtividadesAba() {
             />
 
             <div className="max-h-56 overflow-y-auto border-2 border-ink rounded-xl bg-bg p-2 flex flex-col gap-2">
-              {!filtroQuestoes.cursoId ? (
+              {carregandoQuestoes ? (
+                <p className="text-xs text-muted text-center p-4">
+                  Carregando questões do banco...
+                </p>
+              ) : !filtroQuestoes.cursoId && todasQuestoesExibidas.length === 0 ? (
                 <p className="text-xs text-muted text-center p-4">
                   Escolha o curso e clique em Filtrar para ver as questões publicadas.
                 </p>
-              ) : questoesBanco.length === 0 ? (
+              ) : todasQuestoesExibidas.length === 0 ? (
                 <p className="text-xs text-muted text-center p-4">
                   Nenhuma questão publicada com esses filtros.
                 </p>
               ) : (
-                questoesBanco.map((q) => {
+                todasQuestoesExibidas.map((q) => {
                   const marcada = questoesSelecionadas.includes(q.id);
 
                   return (
                     <div
                       key={q.id}
                       onClick={() => alternarSelecaoQuestao(q.id)}
-                      className={`p-2.5 rounded-xl border-2 flex items-start gap-2.5 cursor-pointer transition-all ${
-                        marcada ? 'bg-yellow/30 border-ink shadow-brutal-sm' : 'bg-paper border-ink/40'
-                      }`}
+                      className={`p-2.5 rounded-xl border-2 flex items-start gap-2.5 cursor-pointer transition-all ${marcada ? 'bg-yellow/30 border-ink shadow-brutal-sm' : 'bg-paper border-ink/40'
+                        }`}
                     >
                       <input
                         type="checkbox"
                         checked={marcada}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         className="w-4 h-4 accent-orange mt-0.5"
                       />
                       <div className="flex-1 min-w-0">
@@ -462,22 +559,24 @@ export function TurmaAtividadesAba() {
           </div>
 
           <div className="flex justify-end gap-2 mt-2 pt-3 border-t-2 border-ink/20">
-            <Button variant="ghost" onClick={() => setModalAberta(false)}>
+            <Button variant="ghost" disabled={salvando} onClick={fecharModal}>
               Cancelar
             </Button>
             <Button
               variant="secondary"
               carregando={salvando}
-              onClick={() => handleCriarAtividade(false)}
+              disabled={carregandoQuestoes}
+              onClick={() => handleSalvarAtividade(false)}
             >
-              Salvar rascunho
+              {atividadeEmEdicao ? 'Salvar alterações' : 'Salvar rascunho'}
             </Button>
             <Button
               variant="primary"
               carregando={salvando}
-              onClick={() => handleCriarAtividade(true)}
+              disabled={carregandoQuestoes}
+              onClick={() => handleSalvarAtividade(true)}
             >
-              Criar e publicar
+              {atividadeEmEdicao ? 'Salvar e publicar' : 'Criar e publicar'}
             </Button>
           </div>
         </div>
