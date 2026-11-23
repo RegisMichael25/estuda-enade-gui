@@ -428,6 +428,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/professor/questoes/anos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Anos das questões que o professor vê no banco, do mais recente ao mais antigo
+         * @description Mesma visibilidade da listagem: publicadas de todos e as do próprio professor em qualquer estado.
+         */
+        get: operations["anosDoBanco"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/professor/questoes/{questaoId}": {
         parameters: {
             query?: never;
@@ -887,7 +907,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Anos com questões publicadas */
+        /** Anos com questões publicadas, do mais recente ao mais antigo */
         get: operations["anosDaPratica"];
         put?: never;
         post?: never;
@@ -2530,6 +2550,8 @@ export interface operations {
                 cursoId?: string;
                 temaId?: string;
                 ano?: number;
+                /** @description Trecho do enunciado. Ignora maiúsculas e acentos. */
+                busca?: string;
                 status?: components["schemas"]["StatusQuestao"];
                 /** @description Só as que têm sinalização aberta. */
                 sinalizadas?: boolean;
@@ -2598,6 +2620,39 @@ export interface operations {
             };
             /** @description Regra de negócio violada; veja `codigo`. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    anosDoBanco: {
+        parameters: {
+            query?: {
+                /** @description Só os anos de questões deste curso. */
+                cursoId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4047,7 +4102,10 @@ export interface operations {
     };
     anosDaPratica: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Só os anos de questões deste curso. */
+                cursoId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4081,6 +4139,8 @@ export interface operations {
                 cursoId?: string;
                 temaId?: string;
                 ano?: number;
+                /** @description Trecho do enunciado. Ignora maiúsculas e acentos. */
+                busca?: string;
                 /** @description Começa em 0. */
                 pagina?: number;
                 /** @description Itens por página; o servidor limita a 100. */

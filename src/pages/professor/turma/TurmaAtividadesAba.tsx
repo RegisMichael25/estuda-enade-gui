@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Combobox } from '@/components/ui/Combobox';
 import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
+import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import {
@@ -60,10 +61,13 @@ export function TurmaAtividadesAba() {
   const [modalAberta, setModalAberta] = useState(false);
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoAtividade>('SIMULADO');
-  const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>(30);
+  const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>('');
   const [tentativas, setTentativas] = useState<OpcaoTentativas>('1');
   const [questoesBanco, setQuestoesBanco] = useState<Questao[]>([]);
   const [questoesSelecionadas, setQuestoesSelecionadas] = useState<string[]>([]);
+  // Começa no curso da turma, quando ela tem um
+  const [filtroQuestoes, setFiltroQuestoes] = useState<ValorFiltroQuestoes>(filtroVazio(turma.curso?.id ?? ''));
+  const [totalQuestoesBanco, setTotalQuestoesBanco] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   async function carregarAtividades() {
@@ -82,15 +86,38 @@ export function TurmaAtividadesAba() {
     carregarAtividades();
   }, [turma.id]);
 
-  async function abrirModalCriar() {
+  function abrirModalCriar() {
     setModalAberta(true);
-    try {
-      const res = await api.professor.obterQuestoes({ status: 'PUBLICADA', tamanho: 50 });
-      setQuestoesBanco(res.itens);
-    } catch (err) {
-      console.error(err);
-    }
   }
+
+  // Só questões publicadas entram em atividade; a lista segue o filtro em etapas
+  useEffect(() => {
+    if (!modalAberta) return;
+    if (!filtroQuestoes.cursoId) {
+      setQuestoesBanco([]);
+      setTotalQuestoesBanco(null);
+      return;
+    }
+    let ativo = true;
+    api.professor
+      .obterQuestoes({
+        status: 'PUBLICADA',
+        cursoId: filtroQuestoes.cursoId,
+        temaId: filtroQuestoes.temaId ?? undefined,
+        ano: filtroQuestoes.ano ?? undefined,
+        busca: filtroQuestoes.busca || undefined,
+        tamanho: 50
+      })
+      .then((res) => {
+        if (!ativo) return;
+        setQuestoesBanco(res.itens);
+        setTotalQuestoesBanco(res.total);
+      })
+      .catch((err) => console.error(err));
+    return () => {
+      ativo = false;
+    };
+  }, [modalAberta, filtroQuestoes]);
 
   function alternarSelecaoQuestao(qId: string) {
     setQuestoesSelecionadas((prev) =>
@@ -378,10 +405,23 @@ export function TurmaAtividadesAba() {
               </span>
             </div>
 
+            <FiltroQuestoes
+              valor={filtroQuestoes}
+              aoMudar={setFiltroQuestoes}
+              obterAnos={api.professor.obterAnosBanco}
+              total={totalQuestoesBanco}
+              layout="compacto"
+              className="shadow-none"
+            />
+
             <div className="max-h-56 overflow-y-auto border-2 border-ink rounded-xl bg-bg p-2 flex flex-col gap-2">
-              {questoesBanco.length === 0 ? (
+              {!filtroQuestoes.cursoId ? (
                 <p className="text-xs text-muted text-center p-4">
-                  Nenhuma questão publicada disponível no banco para selecionar.
+                  Escolha o curso e clique em Filtrar para ver as questões publicadas.
+                </p>
+              ) : questoesBanco.length === 0 ? (
+                <p className="text-xs text-muted text-center p-4">
+                  Nenhuma questão publicada com esses filtros.
                 </p>
               ) : (
                 questoesBanco.map((q) => {
