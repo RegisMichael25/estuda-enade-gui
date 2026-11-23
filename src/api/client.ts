@@ -609,6 +609,12 @@ export const api = {
       });
     },
 
+    excluirQuestao(questaoId: string): Promise<void> {
+      return request<void>(`/professor/questoes/${questaoId}`, {
+        method: 'DELETE'
+      });
+    },
+
     obterSinalizacoesQuestao(questaoId: string): Promise<Sinalizacao[]> {
       return request<Sinalizacao[]>(`/professor/questoes/${questaoId}/sinalizacoes`);
     },
