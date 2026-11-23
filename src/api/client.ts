@@ -620,6 +620,13 @@ export const api = {
       return request<Sinalizacao[]>(`/professor/questoes/${questaoId}/sinalizacoes`);
     },
 
+    sinalizarQuestao(questaoId: string, motivo: string): Promise<void> {
+      return request<void>(`/professor/questoes/${questaoId}/sinalizacoes`, {
+        method: 'POST',
+        body: JSON.stringify({ motivo })
+      });
+    },
+
     resolverSinalizacoes(questaoId: string): Promise<void> {
       return request<void>(`/professor/questoes/${questaoId}/sinalizacoes/resolver`, {
         method: 'POST'
