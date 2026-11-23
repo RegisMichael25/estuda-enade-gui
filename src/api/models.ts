@@ -47,6 +47,9 @@ export type TemaDesempenho = Schemas['TemaDesempenho'];
 export type ResultadosAtividade = Schemas['ResultadosAtividadeResponse'];
 export type ResultadoAluno = Schemas['ResultadoAluno'];
 
+export type Comentario = Schemas['ComentarioResponse'];
+export type Mural = Schemas['MuralResponse'];
+
 export type Sinalizacao = Schemas['SinalizacaoResponse'];
 export type Convite = Schemas['ConviteResponse'] & {
   invalidado?: boolean;
