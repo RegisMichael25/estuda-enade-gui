@@ -94,6 +94,12 @@ export function FiltroQuestoes({
   const [temas, setTemas] = useState<Tema[]>([]);
   const [anos, setAnos] = useState<number[]>([]);
 
+  useEffect(() => {
+    if (iniciarRecolhido === false && valor.cursoId) {
+      setExpandido(true);
+    }
+  }, [valor.cursoId, iniciarRecolhido]);
+
   // O que está nos campos; vira filtro aplicado só ao clicar em Filtrar
   const [rascunho, setRascunho] = useState<ValorFiltroQuestoes>(valor);
   useEffect(() => {
