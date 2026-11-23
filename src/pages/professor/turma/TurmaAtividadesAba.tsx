@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { Turma, Atividade, Questao, StatusAtividade } from '@/api/models';
+import type { Atividade, Questao, StatusAtividade } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Combobox } from '@/components/ui/Combobox';
 import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
+import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import {
@@ -19,10 +20,7 @@ import {
   FileCheck,
   Pencil
 } from 'lucide-react';
-
-interface ContextType {
-  turmaSelecionada: Turma | null;
-}
+import { useTurma } from './ProfessorTurmaPage';
 
 const ROTULO_STATUS: Record<StatusAtividade, string> = {
   RASCUNHO: 'Rascunho',
@@ -50,11 +48,12 @@ function rotuloTentativas(max: number | null) {
   return max === 1 ? '1 tentativa' : `${max} tentativas`;
 }
 
-export function ProfessorAtividadesPage() {
+export function TurmaAtividadesAba() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const confirmar = useConfirmacao();
-  const { turmaSelecionada } = useOutletContext<ContextType>();
+  const { turma } = useTurma();
+  const arquivada = !!turma.arquivadaEm;
 
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -64,18 +63,23 @@ export function ProfessorAtividadesPage() {
   const [atividadeEmEdicao, setAtividadeEmEdicao] = useState<Atividade | null>(null);
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoAtividade>('SIMULADO');
-  const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>(30);
+  const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>('');
   const [tentativas, setTentativas] = useState<OpcaoTentativas>('1');
   const [questoesBanco, setQuestoesBanco] = useState<Questao[]>([]);
+  const [questoesAtividade, setQuestoesAtividade] = useState<Questao[]>([]);
   const [questoesSelecionadas, setQuestoesSelecionadas] = useState<string[]>([]);
   const [carregandoQuestoes, setCarregandoQuestoes] = useState(false);
+  // Começa no curso da turma, quando ela tem um
+  const [filtroQuestoes, setFiltroQuestoes] = useState<ValorFiltroQuestoes>(
+    filtroVazio(turma.curso?.id ?? '')
+  );
+  const [totalQuestoesBanco, setTotalQuestoesBanco] = useState<number | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   async function carregarAtividades() {
-    if (!turmaSelecionada) return;
     setCarregando(true);
     try {
-      const lista = await api.professor.obterAtividadesTurma(turmaSelecionada.id);
+      const lista = await api.professor.obterAtividadesTurma(turma.id);
       setAtividades(lista);
     } catch (err) {
       console.error('Erro ao carregar atividades:', err);
@@ -86,25 +90,18 @@ export function ProfessorAtividadesPage() {
 
   useEffect(() => {
     carregarAtividades();
-  }, [turmaSelecionada]);
+  }, [turma.id]);
 
-  async function abrirModalCriar() {
+  function abrirModalCriar() {
     setAtividadeEmEdicao(null);
     setTitulo('');
     setTipo('SIMULADO');
-    setDuracaoMinutos(30);
+    setDuracaoMinutos('');
     setTentativas('1');
     setQuestoesSelecionadas([]);
+    setQuestoesAtividade([]);
+    setFiltroQuestoes(filtroVazio(turma.curso?.id ?? ''));
     setModalAberta(true);
-    setCarregandoQuestoes(true);
-    try {
-      const res = await api.professor.obterQuestoes({ status: 'PUBLICADA', tamanho: 50 });
-      setQuestoesBanco(res.itens);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setCarregandoQuestoes(false);
-    }
   }
 
   async function abrirModalEditar(atv: Atividade) {
@@ -114,15 +111,13 @@ export function ProfessorAtividadesPage() {
     setDuracaoMinutos(atv.duracaoMinutos ?? '');
     setTentativas(atv.maxTentativas === null ? ILIMITADAS : String(atv.maxTentativas));
     setQuestoesSelecionadas([]);
+    setQuestoesAtividade([]);
+    setFiltroQuestoes(filtroVazio(turma.curso?.id ?? ''));
     setModalAberta(true);
     setCarregandoQuestoes(true);
 
     try {
-      const [detalhe, resQuestoes] = await Promise.all([
-        api.professor.obterAtividade(atv.id),
-        api.professor.obterQuestoes({ status: 'PUBLICADA', tamanho: 50 })
-      ]);
-
+      const detalhe = await api.professor.obterAtividade(atv.id);
       setTitulo(detalhe.atividade.titulo);
       setTipo(detalhe.atividade.tipo);
       setDuracaoMinutos(detalhe.atividade.duracaoMinutos ?? '');
@@ -132,17 +127,7 @@ export function ProfessorAtividadesPage() {
           : String(detalhe.atividade.maxTentativas)
       );
       setQuestoesSelecionadas(detalhe.questoes.map((q) => q.id));
-
-      // Garante que todas as questões da atividade apareçam na lista do banco
-      const idsExistentes = new Set(resQuestoes.itens.map((q) => q.id));
-      const questoesCombinadas = [...resQuestoes.itens];
-      for (const q of detalhe.questoes) {
-        if (!idsExistentes.has(q.id)) {
-          questoesCombinadas.push(q);
-          idsExistentes.add(q.id);
-        }
-      }
-      setQuestoesBanco(questoesCombinadas);
+      setQuestoesAtividade(detalhe.questoes);
     } catch (err: any) {
       console.error('Erro ao carregar detalhes do rascunho:', err);
       toast(err?.mensagem || 'Erro ao carregar detalhes do rascunho.');
@@ -157,7 +142,48 @@ export function ProfessorAtividadesPage() {
     setAtividadeEmEdicao(null);
     setTitulo('');
     setQuestoesSelecionadas([]);
+    setQuestoesAtividade([]);
   }
+
+  // Só questões publicadas entram em atividade; a lista segue o filtro em etapas
+  useEffect(() => {
+    if (!modalAberta) return;
+    if (!filtroQuestoes.cursoId) {
+      setQuestoesBanco([]);
+      setTotalQuestoesBanco(null);
+      return;
+    }
+    let ativo = true;
+    setCarregandoQuestoes(true);
+    api.professor
+      .obterQuestoes({
+        status: 'PUBLICADA',
+        cursoId: filtroQuestoes.cursoId,
+        temaId: filtroQuestoes.temaId ?? undefined,
+        ano: filtroQuestoes.ano ?? undefined,
+        busca: filtroQuestoes.busca || undefined,
+        tamanho: 50
+      })
+      .then((res) => {
+        if (!ativo) return;
+        setQuestoesBanco(res.itens);
+        setTotalQuestoesBanco(res.total);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (ativo) setCarregandoQuestoes(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [modalAberta, filtroQuestoes]);
+
+  // Lista de questões combinadas: questões do banco pelo filtro + questões já pertencentes ao rascunho
+  const todasQuestoesExibidas = useMemo(() => {
+    const ids = new Set(questoesBanco.map((q) => q.id));
+    const extras = questoesAtividade.filter((q) => !ids.has(q.id));
+    return [...extras, ...questoesBanco];
+  }, [questoesBanco, questoesAtividade]);
 
   function alternarSelecaoQuestao(qId: string) {
     setQuestoesSelecionadas((prev) =>
@@ -173,7 +199,10 @@ export function ProfessorAtividadesPage() {
   }
 
   async function handleSalvarAtividade(publicarImediatamente = false) {
-    if (!turmaSelecionada) return;
+    if (arquivada) {
+      toast('Turma arquivada não pode receber alterações.');
+      return;
+    }
     if (!titulo.trim()) {
       toast('Informe o título da atividade.');
       return;
@@ -187,7 +216,7 @@ export function ProfessorAtividadesPage() {
       publicarImediatamente &&
       !(await confirmar({
         titulo: atividadeEmEdicao ? 'Salvar e publicar atividade?' : 'Criar e publicar atividade?',
-        mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turmaSelecionada.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
+        mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turma.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
         rotuloConfirmar: 'Publicar',
       }))
     ) {
@@ -214,7 +243,7 @@ export function ProfessorAtividadesPage() {
           toast('Rascunho atualizado com sucesso!');
         }
       } else {
-        const nova = await api.professor.criarAtividadeTurma(turmaSelecionada.id, payload);
+        const nova = await api.professor.criarAtividadeTurma(turma.id, payload);
 
         if (publicarImediatamente) {
           await api.professor.publicarAtividade(nova.id);
@@ -229,7 +258,7 @@ export function ProfessorAtividadesPage() {
     } catch (err: any) {
       toast(
         err?.mensagem ||
-          (atividadeEmEdicao ? 'Erro ao atualizar rascunho.' : 'Erro ao criar atividade.')
+        (atividadeEmEdicao ? 'Erro ao atualizar rascunho.' : 'Erro ao criar atividade.')
       );
     } finally {
       setSalvando(false);
@@ -286,24 +315,21 @@ export function ProfessorAtividadesPage() {
     }
   }
 
-  if (!turmaSelecionada) return null;
-
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold font-title text-ink">
-            Atividades & Simulados
-          </h1>
-          <p className="text-xs lg:text-sm text-muted">
-            Turma: <b>{turmaSelecionada.nome}</b> · Listas de treino e simulados avaliativos.
-          </p>
-        </div>
+        <p className="text-xs lg:text-sm text-muted">
+          {arquivada
+            ? 'Turma arquivada: não recebe novas atividades. O histórico continua disponível.'
+            : 'Listas de treino e simulados avaliativos desta turma.'}
+        </p>
 
-        <Button variant="primary" size="md" onClick={abrirModalCriar}>
-          <Plus className="w-4 h-4" />
-          Nova atividade
-        </Button>
+        {!arquivada && (
+          <Button variant="primary" size="md" onClick={abrirModalCriar}>
+            <Plus className="w-4 h-4" />
+            Nova atividade
+          </Button>
+        )}
       </div>
 
       {/* Lista de Atividades */}
@@ -317,9 +343,11 @@ export function ProfessorAtividadesPage() {
             <p className="text-sm font-bold text-muted">
               Nenhuma atividade cadastrada para esta turma.
             </p>
-            <Button variant="primary" size="sm" onClick={abrirModalCriar} className="mt-3">
-              + Criar primeira atividade
-            </Button>
+            {!arquivada && (
+              <Button variant="primary" size="sm" onClick={abrirModalCriar} className="mt-3">
+                + Criar primeira atividade
+              </Button>
+            )}
           </Card>
         ) : (
           atividades.map((atv) => (
@@ -327,9 +355,8 @@ export function ProfessorAtividadesPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-10 h-10 rounded-xl border-2 border-ink flex items-center justify-center text-ink flex-none shadow-brutal-sm ${
-                      atv.tipo === 'SIMULADO' ? 'bg-yellow' : 'bg-blue'
-                    }`}
+                    className={`w-10 h-10 rounded-xl border-2 border-ink flex items-center justify-center text-ink flex-none shadow-brutal-sm ${atv.tipo === 'SIMULADO' ? 'bg-yellow' : 'bg-blue'
+                      }`}
                   >
                     <ClipboardList className="w-5 h-5" />
                   </div>
@@ -351,8 +378,8 @@ export function ProfessorAtividadesPage() {
                       atv.status === 'PUBLICADA'
                         ? 'green'
                         : atv.status === 'ENCERRADA'
-                        ? 'pink'
-                        : 'paper'
+                          ? 'pink'
+                          : 'paper'
                     }
                   >
                     {ROTULO_STATUS[atv.status]}
@@ -366,7 +393,7 @@ export function ProfessorAtividadesPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => navigate(`/professor/atividades/${atv.id}/resultados`)}
+                    onClick={() => navigate(`/professor/turmas/${turma.id}/resultados/${atv.id}`)}
                   >
                     <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
                     Ver resultados
@@ -374,7 +401,7 @@ export function ProfessorAtividadesPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {atv.status === 'RASCUNHO' && (
+                  {atv.status === 'RASCUNHO' && !arquivada && (
                     <Button
                       variant="secondary"
                       size="sm"
@@ -385,7 +412,7 @@ export function ProfessorAtividadesPage() {
                     </Button>
                   )}
 
-                  {atv.status === 'RASCUNHO' && (
+                  {atv.status === 'RASCUNHO' && !arquivada && (
                     <Button variant="green" size="sm" onClick={() => handlePublicar(atv)}>
                       <CheckCircle className="w-3.5 h-3.5" />
                       Publicar
@@ -472,31 +499,43 @@ export function ProfessorAtividadesPage() {
               </span>
             </div>
 
+            <FiltroQuestoes
+              valor={filtroQuestoes}
+              aoMudar={setFiltroQuestoes}
+              obterAnos={api.professor.obterAnosBanco}
+              total={totalQuestoesBanco}
+              layout="compacto"
+              className="shadow-none"
+            />
+
             <div className="max-h-56 overflow-y-auto border-2 border-ink rounded-xl bg-bg p-2 flex flex-col gap-2">
               {carregandoQuestoes ? (
                 <p className="text-xs text-muted text-center p-4">
                   Carregando questões do banco...
                 </p>
-              ) : questoesBanco.length === 0 ? (
+              ) : !filtroQuestoes.cursoId && todasQuestoesExibidas.length === 0 ? (
                 <p className="text-xs text-muted text-center p-4">
-                  Nenhuma questão publicada disponível no banco para selecionar.
+                  Escolha o curso e clique em Filtrar para ver as questões publicadas.
+                </p>
+              ) : todasQuestoesExibidas.length === 0 ? (
+                <p className="text-xs text-muted text-center p-4">
+                  Nenhuma questão publicada com esses filtros.
                 </p>
               ) : (
-                questoesBanco.map((q) => {
+                todasQuestoesExibidas.map((q) => {
                   const marcada = questoesSelecionadas.includes(q.id);
 
                   return (
                     <div
                       key={q.id}
                       onClick={() => alternarSelecaoQuestao(q.id)}
-                      className={`p-2.5 rounded-xl border-2 flex items-start gap-2.5 cursor-pointer transition-all ${
-                        marcada ? 'bg-yellow/30 border-ink shadow-brutal-sm' : 'bg-paper border-ink/40'
-                      }`}
+                      className={`p-2.5 rounded-xl border-2 flex items-start gap-2.5 cursor-pointer transition-all ${marcada ? 'bg-yellow/30 border-ink shadow-brutal-sm' : 'bg-paper border-ink/40'
+                        }`}
                     >
                       <input
                         type="checkbox"
                         checked={marcada}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         className="w-4 h-4 accent-orange mt-0.5"
                       />
                       <div className="flex-1 min-w-0">

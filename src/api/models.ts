@@ -16,6 +16,9 @@ export type ResumoTurma = Schemas['ResumoTurmaResponse'];
 export type TurmaAluno = Schemas['TurmaAlunoResponse'];
 export type Aluno = Schemas['AlunoResponse'];
 export type DesempenhoAlunoTurma = Schemas['DesempenhoAlunoTurmaResponse'];
+export type PainelProfessor = Schemas['PainelProfessorResponse'];
+export type PainelTurma = Schemas['PainelTurma'];
+export type AtividadeRecentePainel = Schemas['AtividadeRecentePainel'];
 
 export type Questao = Schemas['QuestaoResponse'];
 export type QuestaoAluno = Schemas['QuestaoAlunoResponse'];
@@ -44,8 +47,13 @@ export type TemaDesempenho = Schemas['TemaDesempenho'];
 export type ResultadosAtividade = Schemas['ResultadosAtividadeResponse'];
 export type ResultadoAluno = Schemas['ResultadoAluno'];
 
+export type Comentario = Schemas['ComentarioResponse'];
+export type Mural = Schemas['MuralResponse'];
+
 export type Sinalizacao = Schemas['SinalizacaoResponse'];
-export type Convite = Schemas['ConviteResponse'];
+export type Convite = Schemas['ConviteResponse'] & {
+  invalidado?: boolean;
+  invalidadoEm?: string | null;
+};
 export type ConviteCriado = Schemas['ConviteCriadoResponse'];
 export type ProfessorPendente = Schemas['ProfessorPendenteResponse'];
-

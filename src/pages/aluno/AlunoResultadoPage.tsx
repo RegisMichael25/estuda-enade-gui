@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { ProgressMeter } from '@/components/ui/Tag';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
+import { MuralComentarios } from '@/components/MuralComentarios';
 import { CheckCircle2, XCircle, ArrowLeft, ChevronDown, ChevronUp, Home } from 'lucide-react';
 
 export function AlunoResultadoPage() {
@@ -208,6 +209,9 @@ export function AlunoResultadoPage() {
           );
         })}
       </div>
+
+      {/* Mural aberto à turma: a API só libera depois do envio da primeira tentativa */}
+      <MuralComentarios key={tentativa.atividadeId} atividadeId={tentativa.atividadeId} papel="aluno" />
 
       <Button
         variant="primary"

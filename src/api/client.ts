@@ -1,4 +1,6 @@
 import type {
+  Comentario,
+  Mural,
   Usuario,
   Sessao,
   Turma,
@@ -6,6 +8,7 @@ import type {
   ResumoTurma,
   TurmaAluno,
   DesempenhoAlunoTurma,
+  PainelProfessor,
   Questao,
   PaginaQuestao,
   PaginaQuestaoAluno,
@@ -226,9 +229,9 @@ export const api = {
       return request<Curso[]>('/cursos');
     },
 
-    /** Os temas não pertencem a um curso: a lista é uma só. */
-    obterTemas(): Promise<Tema[]> {
-      return request<Tema[]>('/temas');
+    /** Cada tema pertence a um curso. Sem `cursoId`, vêm os temas de todos os cursos. */
+    obterTemas(cursoId?: string): Promise<Tema[]> {
+      return request<Tema[]>(cursoId ? `/temas?cursoId=${encodeURIComponent(cursoId)}` : '/temas');
     }
   },
 
@@ -242,6 +245,12 @@ export const api = {
       return request<TurmaAluno>('/aluno/turmas/entrar', {
         method: 'POST',
         body: JSON.stringify({ codigo })
+      });
+    },
+
+    sairDaTurma(turmaId: string): Promise<void> {
+      return request<void>(`/aluno/turmas/${turmaId}`, {
+        method: 'DELETE'
       });
     },
 
@@ -284,14 +293,40 @@ export const api = {
       return request<TentativaEstado[]>('/aluno/tentativas');
     },
 
-    obterAnosPratica(): Promise<number[]> {
-      return request<number[]>('/aluno/pratica/anos');
+    // Mural de comentários da atividade
+    obterMural(atividadeId: string): Promise<Mural> {
+      return request<Mural>(`/aluno/atividades/${atividadeId}/comentarios`);
+    },
+
+    comentar(atividadeId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/aluno/atividades/${atividadeId}/comentarios`, {
+        method: 'POST',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    editarComentario(comentarioId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/aluno/comentarios/${comentarioId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    apagarComentario(comentarioId: string): Promise<void> {
+      return request<void>(`/aluno/comentarios/${comentarioId}`, {
+        method: 'DELETE'
+      });
+    },
+
+    obterAnosPratica(cursoId?: string): Promise<number[]> {
+      return request<number[]>(cursoId ? `/aluno/pratica/anos?cursoId=${encodeURIComponent(cursoId)}` : '/aluno/pratica/anos');
     },
 
     obterQuestoesPratica(params?: {
       cursoId?: string;
       temaId?: string;
       ano?: number;
+      busca?: string;
       pagina?: number;
       tamanho?: number;
     }): Promise<PaginaQuestaoAluno> {
@@ -299,6 +334,7 @@ export const api = {
       if (params?.cursoId) sp.set('cursoId', params.cursoId);
       if (params?.temaId) sp.set('temaId', params.temaId);
       if (params?.ano) sp.set('ano', String(params.ano));
+      if (params?.busca) sp.set('busca', params.busca);
       if (params?.pagina !== undefined) sp.set('pagina', String(params.pagina));
       if (params?.tamanho !== undefined) sp.set('tamanho', String(params.tamanho));
       const qs = sp.toString() ? `?${sp.toString()}` : '';
@@ -334,16 +370,23 @@ export const api = {
       });
     },
 
-    /** Cria o tema. Se já existir um com o mesmo nome, a API devolve o existente. */
-    criarTema(nome: string): Promise<Tema> {
+    /** Cria o tema no curso. Se já existir um com o mesmo nome nesse curso, a API devolve o existente. */
+    criarTema(cursoId: string, nome: string): Promise<Tema> {
       return request<Tema>('/professor/temas', {
         method: 'POST',
-        body: JSON.stringify({ nome })
+        body: JSON.stringify({ nome, cursoId })
       });
     },
 
-    obterTurmas(): Promise<Turma[]> {
-      return request<Turma[]>('/professor/turmas');
+    /** Painel inicial: números e atividades recentes de todas as turmas ativas. */
+    obterPainel(): Promise<PainelProfessor> {
+      return request<PainelProfessor>('/professor/painel');
+    },
+
+    /** Só as turmas ativas, a menos que `incluirArquivadas` seja verdadeiro. */
+    obterTurmas(opcoes?: { incluirArquivadas?: boolean }): Promise<Turma[]> {
+      const query = opcoes?.incluirArquivadas ? '?incluirArquivadas=true' : '';
+      return request<Turma[]>(`/professor/turmas${query}`);
     },
 
     criarTurma(payload: { nome: string; periodo?: string; cursoId: string }): Promise<Turma> {
@@ -373,6 +416,18 @@ export const api = {
 
     gerarNovoConviteTurma(turmaId: string): Promise<Turma> {
       return request<Turma>(`/professor/turmas/${turmaId}/convite`, {
+        method: 'POST'
+      });
+    },
+
+    arquivarTurma(turmaId: string): Promise<Turma> {
+      return request<Turma>(`/professor/turmas/${turmaId}/arquivar`, {
+        method: 'POST'
+      });
+    },
+
+    reativarTurma(turmaId: string): Promise<Turma> {
+      return request<Turma>(`/professor/turmas/${turmaId}/reativar`, {
         method: 'POST'
       });
     },
@@ -451,12 +506,39 @@ export const api = {
       return request<ResultadosAtividade>(`/professor/atividades/${atividadeId}/resultados`);
     },
 
+    // Mural de comentários da atividade
+    obterMural(atividadeId: string): Promise<Mural> {
+      return request<Mural>(`/professor/atividades/${atividadeId}/comentarios`);
+    },
+
+    comentar(atividadeId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/professor/atividades/${atividadeId}/comentarios`, {
+        method: 'POST',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    editarComentario(comentarioId: string, texto: string): Promise<Comentario> {
+      return request<Comentario>(`/professor/comentarios/${comentarioId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ texto })
+      });
+    },
+
+    apagarComentario(comentarioId: string): Promise<void> {
+      return request<void>(`/professor/comentarios/${comentarioId}`, {
+        method: 'DELETE'
+      });
+    },
+
     obterQuestoes(params?: {
       cursoId?: string;
       temaId?: string;
       ano?: number;
+      busca?: string;
       apenasMinhas?: boolean;
       status?: StatusQuestao;
+      apenasSinalizadas?: boolean;
       pagina?: number;
       tamanho?: number;
     }): Promise<PaginaQuestao> {
@@ -464,12 +546,20 @@ export const api = {
       if (params?.cursoId) sp.set('cursoId', params.cursoId);
       if (params?.temaId) sp.set('temaId', params.temaId);
       if (params?.ano) sp.set('ano', String(params.ano));
-      if (params?.apenasMinhas !== undefined) sp.set('apenasMinhas', String(params.apenasMinhas));
+      if (params?.busca) sp.set('busca', params.busca);
+      // A API chama os parâmetros de `minhas` e `sinalizadas`
+      if (params?.apenasMinhas) sp.set('minhas', 'true');
+      if (params?.apenasSinalizadas) sp.set('sinalizadas', 'true');
       if (params?.status) sp.set('status', params.status);
       if (params?.pagina !== undefined) sp.set('pagina', String(params.pagina));
       if (params?.tamanho !== undefined) sp.set('tamanho', String(params.tamanho));
       const qs = sp.toString() ? `?${sp.toString()}` : '';
       return request<PaginaQuestao>(`/professor/questoes${qs}`);
+    },
+
+    /** Anos das questões que o professor vê no banco, do mais recente ao mais antigo. */
+    obterAnosBanco(cursoId?: string): Promise<number[]> {
+      return request<number[]>(cursoId ? `/professor/questoes/anos?cursoId=${encodeURIComponent(cursoId)}` : '/professor/questoes/anos');
     },
 
     criarQuestao(payload: {
@@ -538,7 +628,11 @@ export const api = {
         method: 'POST'
       });
     },
-
+invalidarConvite(conviteId: string): Promise<Convite> {
+      return request<Convite>(`/professor/convites/${conviteId}/invalidar`, {
+        method: 'POST'
+      });
+    },
     obterProfessoresPendentes(): Promise<ProfessorPendente[]> {
       return request<ProfessorPendente[]>('/professor/professores/pendentes');
     },

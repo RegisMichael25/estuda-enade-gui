@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { Questao, StatusQuestao, Tema, Sinalizacao } from '@/api/models';
+import type { Questao, Sinalizacao } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Chip } from '@/components/ui/Chip';
+import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
 import { Tag, Badge } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { Plus, Flag, EyeOff, Check } from 'lucide-react';
+import { Plus, Flag, EyeOff, Check, Pencil } from 'lucide-react';
 
 export function ProfessorQuestoesPage() {
   const navigate = useNavigate();
@@ -17,15 +17,11 @@ export function ProfessorQuestoesPage() {
   const confirmar = useConfirmacao();
 
   const [questoes, setQuestoes] = useState<Questao[]>([]);
-  const [temas, setTemas] = useState<Tema[]>([]);
-  const [carregando, setCarregando] = useState(true);
+  const [total, setTotal] = useState<number | null>(null);
+  const [carregando, setCarregando] = useState(false);
 
-  // Filtros
-  const [apenasMinhas, setApenasMinhas] = useState(false);
-  const [filtroTemaId, setFiltroTemaId] = useState<string | null>(null);
-  const [filtroAno, setFiltroAno] = useState<number | null>(null);
-  const [filtroStatus, setFiltroStatus] = useState<StatusQuestao | null>(null);
-  const [apenasSinalizadas, setApenasSinalizadas] = useState(false);
+  // Filtro em etapas: a lista só carrega depois de escolher o curso
+  const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(filtroVazio());
 
   // Modal de Sinalizações
   const [modalSinalizacaoAberta, setModalSinalizacaoAberta] = useState(false);
@@ -34,26 +30,25 @@ export function ProfessorQuestoesPage() {
   const [resolvendoSinalizacao, setResolvendoSinalizacao] = useState(false);
 
   async function carregar() {
+    if (!filtro.cursoId) {
+      setQuestoes([]);
+      setTotal(null);
+      return;
+    }
     setCarregando(true);
     try {
-      const [dadosQuestoes, listaTemas] = await Promise.all([
-        api.professor.obterQuestoes({
-          apenasMinhas: apenasMinhas || undefined,
-          temaId: filtroTemaId || undefined,
-          ano: filtroAno || undefined,
-          status: filtroStatus || undefined,
-          tamanho: 50
-        }),
-        api.catalogo.obterTemas().catch((): Tema[] => [])
-      ]);
-
-      let itens = dadosQuestoes.itens;
-      if (apenasSinalizadas) {
-        itens = itens.filter((q) => (q.sinalizacoesAbertas ?? 0) > 0);
-      }
-
-      setQuestoes(itens);
-      setTemas(listaTemas);
+      const dados = await api.professor.obterQuestoes({
+        cursoId: filtro.cursoId,
+        temaId: filtro.temaId ?? undefined,
+        ano: filtro.ano ?? undefined,
+        busca: filtro.busca || undefined,
+        status: filtro.status ?? undefined,
+        apenasMinhas: filtro.apenasMinhas,
+        apenasSinalizadas: filtro.apenasSinalizadas,
+        tamanho: 50
+      });
+      setQuestoes(dados.itens);
+      setTotal(dados.total);
     } catch (err) {
       console.error('Erro ao carregar banco de questões:', err);
     } finally {
@@ -63,7 +58,7 @@ export function ProfessorQuestoesPage() {
 
   useEffect(() => {
     carregar();
-  }, [apenasMinhas, filtroTemaId, filtroAno, filtroStatus, apenasSinalizadas]);
+  }, [filtro]);
 
   async function handlePublicarQuestao(q: Questao) {
     const ok = await confirmar({
@@ -154,63 +149,28 @@ export function ProfessorQuestoesPage() {
         </Button>
       </div>
 
-      {/* Chips de Filtro */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <Chip
-          active={!apenasMinhas && !filtroTemaId && !filtroAno && !filtroStatus && !apenasSinalizadas}
-          onClick={() => {
-            setApenasMinhas(false);
-            setFiltroTemaId(null);
-            setFiltroAno(null);
-            setFiltroStatus(null);
-            setApenasSinalizadas(false);
-          }}
-        >
-          Todas
-        </Chip>
-
-        <Chip
-          active={apenasMinhas}
-          onClick={() => setApenasMinhas(!apenasMinhas)}
-        >
-          Minhas
-        </Chip>
-
-        {temas.slice(0, 4).map((t) => (
-          <Chip
-            key={t.id}
-            active={filtroTemaId === t.id}
-            onClick={() => setFiltroTemaId(filtroTemaId === t.id ? null : t.id)}
-          >
-            {t.nome}
-          </Chip>
-        ))}
-
-        <Chip
-          active={filtroAno === 2024}
-          onClick={() => setFiltroAno(filtroAno === 2024 ? null : 2024)}
-        >
-          2024
-        </Chip>
-
-        <Chip
-          active={filtroAno === 2021}
-          onClick={() => setFiltroAno(filtroAno === 2021 ? null : 2021)}
-        >
-          2021
-        </Chip>
-
-        <Chip
-          active={apenasSinalizadas}
-          onClick={() => setApenasSinalizadas(!apenasSinalizadas)}
-        >
-          Sinalizadas
-        </Chip>
-      </div>
+      <FiltroQuestoes
+        valor={filtro}
+        aoMudar={setFiltro}
+        obterAnos={api.professor.obterAnosBanco}
+        filtrosDoBanco
+        total={total}
+      />
 
       {/* Lista de Questões */}
       <div className="flex flex-col gap-3">
-        {carregando ? (
+        {total !== null && total > questoes.length && !carregando && (
+          <p className="text-xs font-bold text-muted">
+            Mostrando as {questoes.length} mais recentes de {total}. Refine o filtro para encontrar as demais.
+          </p>
+        )}
+        {!filtro.cursoId ? (
+          <Card className="p-8 text-center bg-paper">
+            <p className="text-sm font-bold text-muted">
+              Escolha o curso e clique em Filtrar para ver as questões.
+            </p>
+          </Card>
+        ) : carregando ? (
           <div className="p-8 text-center text-xs font-bold text-muted">
             Carregando questões...
           </div>
@@ -265,6 +225,17 @@ export function ProfessorQuestoesPage() {
                       >
                         <Flag className="w-3.5 h-3.5 text-orange" />
                         Ver {q.sinalizacoesAbertas} sinalização(ões)
+                      </Button>
+                    )}
+
+                    {q.minha && q.status === 'RASCUNHO' && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => navigate(`/professor/questoes/${q.id}/editar`)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Editar
                       </Button>
                     )}
 
