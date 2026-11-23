@@ -318,14 +318,15 @@ export const api = {
       });
     },
 
-    obterAnosPratica(): Promise<number[]> {
-      return request<number[]>('/aluno/pratica/anos');
+    obterAnosPratica(cursoId?: string): Promise<number[]> {
+      return request<number[]>(cursoId ? `/aluno/pratica/anos?cursoId=${encodeURIComponent(cursoId)}` : '/aluno/pratica/anos');
     },
 
     obterQuestoesPratica(params?: {
       cursoId?: string;
       temaId?: string;
       ano?: number;
+      busca?: string;
       pagina?: number;
       tamanho?: number;
     }): Promise<PaginaQuestaoAluno> {
@@ -333,6 +334,7 @@ export const api = {
       if (params?.cursoId) sp.set('cursoId', params.cursoId);
       if (params?.temaId) sp.set('temaId', params.temaId);
       if (params?.ano) sp.set('ano', String(params.ano));
+      if (params?.busca) sp.set('busca', params.busca);
       if (params?.pagina !== undefined) sp.set('pagina', String(params.pagina));
       if (params?.tamanho !== undefined) sp.set('tamanho', String(params.tamanho));
       const qs = sp.toString() ? `?${sp.toString()}` : '';
@@ -533,8 +535,10 @@ export const api = {
       cursoId?: string;
       temaId?: string;
       ano?: number;
+      busca?: string;
       apenasMinhas?: boolean;
       status?: StatusQuestao;
+      apenasSinalizadas?: boolean;
       pagina?: number;
       tamanho?: number;
     }): Promise<PaginaQuestao> {
@@ -542,12 +546,20 @@ export const api = {
       if (params?.cursoId) sp.set('cursoId', params.cursoId);
       if (params?.temaId) sp.set('temaId', params.temaId);
       if (params?.ano) sp.set('ano', String(params.ano));
-      if (params?.apenasMinhas !== undefined) sp.set('apenasMinhas', String(params.apenasMinhas));
+      if (params?.busca) sp.set('busca', params.busca);
+      // A API chama os parâmetros de `minhas` e `sinalizadas`
+      if (params?.apenasMinhas) sp.set('minhas', 'true');
+      if (params?.apenasSinalizadas) sp.set('sinalizadas', 'true');
       if (params?.status) sp.set('status', params.status);
       if (params?.pagina !== undefined) sp.set('pagina', String(params.pagina));
       if (params?.tamanho !== undefined) sp.set('tamanho', String(params.tamanho));
       const qs = sp.toString() ? `?${sp.toString()}` : '';
       return request<PaginaQuestao>(`/professor/questoes${qs}`);
+    },
+
+    /** Anos das questões que o professor vê no banco, do mais recente ao mais antigo. */
+    obterAnosBanco(cursoId?: string): Promise<number[]> {
+      return request<number[]>(cursoId ? `/professor/questoes/anos?cursoId=${encodeURIComponent(cursoId)}` : '/professor/questoes/anos');
     },
 
     criarQuestao(payload: {

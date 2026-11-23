@@ -38,12 +38,13 @@ export function Modal({ aberto, aoFechar, titulo, children, className }: ModalPr
       {/* Modal Dialog */}
       <div
         className={cn(
-          'relative w-full max-w-lg bg-paper border-[3px] border-ink rounded-2xl p-6 shadow-brutal-xl z-10',
+          // Altura limitada à tela: o cabeçalho fica fixo e o conteúdo rola por dentro
+          'relative w-full max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col bg-paper border-[3px] border-ink rounded-2xl p-6 shadow-brutal-xl z-10',
           'animate-in fade-in zoom-in-95 duration-150',
           className
         )}
       >
-        <div className="flex items-center justify-between gap-4 mb-4 pb-2 border-b-2 border-ink">
+        <div className="shrink-0 flex items-center justify-between gap-4 mb-4 pb-2 border-b-2 border-ink">
           {titulo && <h3 className="text-xl font-bold font-title text-ink">{titulo}</h3>}
           <button
             type="button"
@@ -54,7 +55,7 @@ export function Modal({ aberto, aoFechar, titulo, children, className }: ModalPr
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div>{children}</div>
+        <div className="min-h-0 overflow-y-auto -mx-1 px-1">{children}</div>
       </div>
     </div>
   );

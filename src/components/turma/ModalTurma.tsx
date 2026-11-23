@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/Input';
 import { Combobox } from '@/components/ui/Combobox';
 import { useToast } from '@/components/ui/Toast';
 
-const PERIODO_PADRAO = '2026.2';
 
 export interface ModalTurmaProps {
   aberto: boolean;
@@ -25,7 +24,7 @@ export function ModalTurma({ aberto, aoFechar, turma, aoSalvar }: ModalTurmaProp
   const editando = !!turma;
 
   const [nome, setNome] = useState('');
-  const [periodo, setPeriodo] = useState(PERIODO_PADRAO);
+  const [periodo, setPeriodo] = useState('');
   const [cursoId, setCursoId] = useState('');
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [salvando, setSalvando] = useState(false);
@@ -33,7 +32,7 @@ export function ModalTurma({ aberto, aoFechar, turma, aoSalvar }: ModalTurmaProp
   useEffect(() => {
     if (!aberto) return;
     setNome(turma?.nome ?? '');
-    setPeriodo(turma ? turma.periodo ?? '' : PERIODO_PADRAO);
+    setPeriodo(turma?.periodo ?? '');
     setCursoId(turma?.curso?.id ?? '');
 
     api.catalogo
