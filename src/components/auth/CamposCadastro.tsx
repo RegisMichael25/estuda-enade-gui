@@ -3,10 +3,7 @@ import { CampoSenha } from '@/components/auth/CampoSenha';
 import { SeletorPapel } from '@/components/auth/SeletorPapel';
 import type { Papel } from '@/api/models';
 
-/**
- * Papel e convite, comuns a /cadastro e /cadastro/google. O convite só existe para professor: ao trocar para
- * aluno, o campo some e o valor é limpo (o backend o ignoraria para aluno de qualquer forma).
- */
+/** O convite só existe para professor: trocar para aluno limpa o valor. */
 export function CamposPapelConvite({
   papel,
   aoMudarPapel,
@@ -49,7 +46,6 @@ export function CamposPapelConvite({
   );
 }
 
-/** Senha nova com confirmação e as regras da política. */
 export function CamposNovaSenha({
   senha,
   aoMudarSenha,
@@ -94,6 +90,5 @@ export function CamposNovaSenha({
 
 export const SENHAS_NAO_CONFEREM = 'As senhas não conferem.';
 
-/** O professor só é liberado com convite ou pela aprovação de outro professor (o domínio do e-mail não conta). */
 export const DICA_PROFESSOR_SEM_CONVITE =
   'Sem convite, seu acesso fica pendente até um professor já aprovado liberar.';

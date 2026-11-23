@@ -4,10 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const chave = (usuarioId: string) => `estuda_enade_aviso_sem_senha_dispensado_${usuarioId}`;
 
-/**
- * Aviso para conta sem senha (conta antiga que ainda não criou uma). Pode ser dispensado; a dispensa vale por
- * usuário neste navegador. {@code aoCriarSenha} abre o ModalSenha.
- */
 export function AvisoSemSenha({ aoCriarSenha, className }: { aoCriarSenha: () => void; className?: string }) {
   const { usuario } = useAuth();
   const [dispensado, setDispensado] = useState(() => !!usuario && localStorage.getItem(chave(usuario.id)) === '1');

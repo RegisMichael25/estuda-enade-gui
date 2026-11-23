@@ -1,7 +1,4 @@
-/**
- * Política de senha, espelhando a do backend (que continua sendo a autoridade: responde 422 SENHA_FRACA).
- * Serve para mostrar as regras enquanto o usuário digita.
- */
+/** Espelha a política do backend, só para mostrar as regras enquanto o usuário digita. */
 
 export const MINIMO_CARACTERES = 8;
 /** Limite do BCrypt no backend. */
@@ -21,7 +18,7 @@ export function regrasSenha(senha: string): RegraSenha[] {
     { id: 'letra', texto: 'Pelo menos uma letra', ok: /\p{L}/u.test(senha) },
     { id: 'numero', texto: 'Pelo menos um número', ok: /\p{Nd}/u.test(senha) }
   ];
-  // Só aparece quando estoura: com caracteres acentuados, 72 bytes podem ser menos de 72 caracteres.
+  // Só aparece quando estoura (com acentos, 72 bytes podem ser menos de 72 caracteres)
   if (bytes > MAXIMO_BYTES) {
     regras.push({ id: 'bytes', texto: 'Senha longa demais', ok: false });
   }

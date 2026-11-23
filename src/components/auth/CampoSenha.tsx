@@ -8,14 +8,11 @@ interface CampoSenhaProps extends Omit<React.InputHTMLAttributes<HTMLInputElemen
   label: string;
   value: string;
   onChange: (valor: string) => void;
-  /** `current-password` no login; `new-password` ao criar ou trocar a senha. */
   autoComplete: 'current-password' | 'new-password';
   error?: string;
-  /** Mostra a lista de regras da política (para senha nova). */
   mostrarRegras?: boolean;
 }
 
-/** Campo de senha com mostrar/ocultar e, opcionalmente, as regras da política marcadas enquanto o usuário digita. */
 export function CampoSenha({
   id,
   label,

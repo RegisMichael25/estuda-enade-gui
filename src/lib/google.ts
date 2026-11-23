@@ -1,7 +1,4 @@
-/**
- * Login com Google — ADIADO. Fica desligado enquanto VITE_GOOGLE_CLIENT_ID não estiver definido:
- * o botão não renderiza e a tela /cadastro/google não tem como ser aberta.
- */
+/** Login com Google (adiado): desligado sem VITE_GOOGLE_CLIENT_ID. */
 
 export const GOOGLE_CLIENT_ID: string = (import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '').trim();
 
@@ -13,10 +10,7 @@ export interface PerfilGoogle {
   foto: string | null;
 }
 
-/**
- * Lê o payload do ID token só para exibir (nome, e-mail e foto na tela de cadastro).
- * Não confere a assinatura: quem valida o token é o backend. Devolve null se o token estiver malformado.
- */
+/** Só para exibir: não confere a assinatura (quem valida é o backend). */
 export function lerPerfilDoIdToken(idToken: string): PerfilGoogle | null {
   try {
     const payload = idToken.split('.')[1];

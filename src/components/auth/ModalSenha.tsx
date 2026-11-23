@@ -11,7 +11,6 @@ import { senhaValida } from '@/lib/senha';
 
 type Erros = Partial<Record<'codigo' | 'senha' | 'confirmacao', string>>;
 
-/** Botão com ícone de chave que abre o ModalSenha (rodapé dos layouts e página de pendente). */
 export function BotaoSenha({ aoClicar }: { aoClicar: () => void }) {
   const { usuario } = useAuth();
   const rotulo = usuario?.temSenha === false ? 'Criar senha' : 'Trocar senha';
@@ -28,11 +27,7 @@ export function BotaoSenha({ aoClicar }: { aoClicar: () => void }) {
   );
 }
 
-/**
- * Criar ou trocar a senha da conta logada, como no "esqueci a senha": primeiro um código é enviado ao e-mail
- * da conta, depois o usuário informa o código e a nova senha. A resposta é uma sessão nova: as outras sessões
- * da conta são encerradas no servidor.
- */
+/** Como no "esqueci a senha": código por e-mail, depois código + nova senha. */
 export function ModalSenha({ aberto, aoFechar }: { aberto: boolean; aoFechar: () => void }) {
   if (!aberto) return null;
   return <FormularioSenha aoFechar={aoFechar} />;

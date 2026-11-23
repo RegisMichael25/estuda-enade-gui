@@ -11,7 +11,6 @@ import { AcessoGoogle } from '@/components/auth/AcessoGoogle';
 import { codigoDeErro, mensagemDeErro } from '@/lib/erros';
 import { googleHabilitado } from '@/lib/google';
 
-/** O que outras telas podem passar ao /login (ex.: depois de redefinir a senha). */
 export interface EstadoLogin {
   email?: string;
 }

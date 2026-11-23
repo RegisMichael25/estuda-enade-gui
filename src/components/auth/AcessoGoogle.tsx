@@ -8,18 +8,13 @@ import { codigoDeErro, mensagemDeErro } from '@/lib/erros';
 import { googleHabilitado } from '@/lib/google';
 import type { Papel } from '@/api/models';
 
-/** O que a tela /cadastro/google recebe por location.state. */
 export interface EstadoCadastroGoogle {
   idToken: string;
   papel?: Papel | null;
   codigoConvite?: string;
 }
 
-/**
- * Login com Google — ADIADO (não renderiza sem VITE_GOOGLE_CLIENT_ID).
- * Mesmo fluxo em /login e /cadastro: se a conta existe, entra (inclusive conta criada com senha); se não existe,
- * abre /cadastro/google com o mesmo token, levando o papel e o convite já escolhidos em /cadastro.
- */
+/** Google (adiado). Conta existe: entra; não existe: vai para /cadastro/google com o mesmo token. */
 export function AcessoGoogle({
   origem,
   papel,

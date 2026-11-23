@@ -8,7 +8,6 @@ import type {
 } from '@/api/models';
 import { api, tokenStorage, ApiException } from '@/api/client';
 
-/** Resultado do login com Google: entrou, ou não há conta e o cadastro precisa ser concluído com o mesmo token. */
 export type ResultadoGoogle =
   | { tipo: 'sessao'; usuario: Usuario }
   | { tipo: 'cadastro-necessario'; idToken: string };
@@ -19,14 +18,11 @@ interface AuthContextType {
   carregando: boolean;
   entrar: (email: string, senha: string) => Promise<Usuario>;
   cadastrar: (dados: CadastrarRequest) => Promise<Usuario>;
-  /** Adiado: só usado com VITE_GOOGLE_CLIENT_ID definido. */
   entrarComGoogle: (idToken: string) => Promise<ResultadoGoogle>;
-  /** Adiado: só usado com VITE_GOOGLE_CLIENT_ID definido. */
   cadastrarComGoogle: (dados: GoogleCadastrarRequest) => Promise<Usuario>;
   solicitarCodigoSenha: (email: string) => Promise<void>;
-  /** O backend encerra todas as sessões: a sessão local também é limpa. */
+  /** Também limpa a sessão local (o backend encerra todas). */
   redefinirSenha: (dados: RedefinirSenhaRequest) => Promise<void>;
-  /** Envia ao e-mail da conta logada o código para trocar a senha. */
   solicitarCodigoTrocaSenha: () => Promise<void>;
   trocarSenha: (codigo: string, novaSenha: string) => Promise<Usuario>;
   sair: () => Promise<void>;
@@ -75,7 +71,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [sincronizar]);
 
-  /** Todo login, cadastro ou troca de senha termina aqui. */
   function aplicarSessao(sessao: Sessao): Usuario {
     tokenStorage.salvarSessao(sessao);
     setUsuario(sessao.usuario);

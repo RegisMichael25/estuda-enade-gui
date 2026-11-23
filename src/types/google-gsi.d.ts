@@ -1,10 +1,6 @@
-/**
- * Tipos mínimos do Google Identity Services (https://accounts.google.com/gsi/client) usados pelo BotaoGoogle.
- * Só o necessário para initialize + renderButton com o ID token (credential).
- */
+/** Tipos mínimos do Google Identity Services usados pelo BotaoGoogle. */
 declare namespace google.accounts.id {
   interface CredentialResponse {
-    /** ID token (JWT) que o backend valida. */
     credential: string;
     select_by?: string;
   }

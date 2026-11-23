@@ -188,7 +188,6 @@ export const api = {
       });
     },
 
-    /** Login com Google (adiado: só é chamado com VITE_GOOGLE_CLIENT_ID definido). */
     entrarComGoogle(idToken: string): Promise<Sessao> {
       return request<Sessao>('/auth/google/entrar', {
         method: 'POST',
@@ -196,7 +195,6 @@ export const api = {
       });
     },
 
-    /** Cadastro com Google (adiado: só é chamado com VITE_GOOGLE_CLIENT_ID definido). */
     cadastrarComGoogle(payload: GoogleCadastrarRequest): Promise<Sessao> {
       return request<Sessao>('/auth/google/cadastrar', {
         method: 'POST',
@@ -204,7 +202,6 @@ export const api = {
       });
     },
 
-    /** Responde igual com ou sem conta para o e-mail ("se houver conta, enviamos"). */
     solicitarCodigoSenha(email: string): Promise<void> {
       return request<void>('/auth/senha/codigo', {
         method: 'POST',
@@ -212,7 +209,6 @@ export const api = {
       });
     },
 
-    /** Encerra todas as sessões da conta no servidor; depois, é preciso entrar de novo. */
     redefinirSenha(payload: RedefinirSenhaRequest): Promise<void> {
       return request<void>('/auth/senha/redefinir', {
         method: 'POST',
@@ -220,15 +216,11 @@ export const api = {
       });
     },
 
-    /** Envia ao e-mail da conta logada o código para trocar a senha. */
     solicitarCodigoTrocaSenha(): Promise<void> {
       return request<void>('/eu/senha/codigo', { method: 'POST' });
     },
 
-    /**
-     * Cria ou troca a senha da conta logada com o código recebido por e-mail. Devolve uma sessão nova (as outras
-     * são encerradas). Código errado vem como 422 CODIGO_INVALIDO, e não 401, para não disparar a renovação automática.
-     */
+    /** Código errado vem como 422, não 401, para não disparar a renovação automática. */
     trocarSenha(payload: TrocarSenhaRequest): Promise<Sessao> {
       return request<Sessao>('/eu/senha', {
         method: 'PUT',

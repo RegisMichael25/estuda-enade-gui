@@ -13,7 +13,7 @@ import { senhaValida } from '@/lib/senha';
 
 type Erros = Partial<Record<'codigo' | 'senha' | 'confirmacao', string>>;
 
-/** "Esqueci a senha": código por e-mail e nova senha. Também serve para quem ainda não tem senha (conta antiga). */
+/** Também cria a senha de contas antigas, que não têm. */
 export function EsqueciSenhaPage() {
   const { solicitarCodigoSenha, redefinirSenha } = useAuth();
   const navigate = useNavigate();

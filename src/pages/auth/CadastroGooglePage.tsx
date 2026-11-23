@@ -23,11 +23,7 @@ type Erros = Partial<Record<'nome' | 'senha' | 'confirmacao' | 'codigoConvite', 
 
 const AVISO_REFAZER = 'Clique em "Cadastrar com Google" de novo para continuar.';
 
-/**
- * Login com Google — ADIADO. Completa o cadastro de quem entrou com Google e ainda não tem conta.
- * Tudo numa tela só: nome (preenchido com o do Google e editável), papel, convite e senha obrigatória.
- * O idToken chega só por location.state (não é gravado): recarregar a página volta para /cadastro.
- */
+/** Google (adiado). O idToken só vem por location.state: recarregar volta para /cadastro. */
 export function CadastroGooglePage() {
   const estado = useLocation().state as EstadoCadastroGoogle | null;
   if (!googleHabilitado || !estado?.idToken) {
@@ -93,7 +89,7 @@ function FormularioCadastroGoogle({ estado }: { estado: EstadoCadastroGoogle }) 
       if (codigo === 'GOOGLE_TOKEN_INVALIDO') {
         voltarParaCadastro();
       } else if (codigo === 'EMAIL_EM_USO') {
-        // A conta foi criada no meio do caminho (ex.: em outra aba): entrar nela com o mesmo token
+        // criada no meio do caminho (ex.: outra aba)
         setErro(
           <>
             Este e-mail já tem conta.{' '}

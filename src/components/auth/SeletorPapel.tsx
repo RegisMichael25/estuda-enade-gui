@@ -19,7 +19,7 @@ const OPCOES: { papel: Papel; titulo: string; descricao: string; icone: typeof U
   }
 ];
 
-/** Escolha de papel no cadastro. Sem papel padrão: o usuário precisa escolher. */
+/** Sem papel padrão, de propósito. */
 export function SeletorPapel({ valor, aoMudar }: { valor: Papel | null; aoMudar: (papel: Papel) => void }) {
   return (
     <fieldset className="flex flex-col gap-1.5">

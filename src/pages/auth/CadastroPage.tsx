@@ -17,7 +17,6 @@ import { camposDeErro, codigoDeErro, mensagemDeErro } from '@/lib/erros';
 import { senhaValida } from '@/lib/senha';
 import type { Papel } from '@/api/models';
 
-/** Aviso que /cadastro/google deixa ao voltar para cá (ex.: token expirado ou página recarregada). */
 export interface EstadoCadastro {
   aviso?: string;
 }
@@ -67,7 +66,7 @@ export function CadastroPage() {
         codigoConvite: papel === 'PROFESSOR' && convite.trim() ? convite.trim() : undefined
       });
       toast('Conta criada com sucesso!');
-      // O RootRedirect decide: aluno → /aluno; professor aprovado → /professor; pendente → /professor/pendente
+      // o RootRedirect escolhe a área (inclusive /professor/pendente)
       navigate('/', { replace: true });
     } catch (err) {
       const codigo = codigoDeErro(err);

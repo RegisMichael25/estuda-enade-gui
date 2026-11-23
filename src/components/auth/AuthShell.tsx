@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card } from '@/components/ui/Card';
 
-/** Layout das telas públicas (entrar, criar conta, esqueci a senha): marca no topo e o cartão do formulário. */
 export function AuthShell({
   erro,
   children,
@@ -9,7 +8,6 @@ export function AuthShell({
 }: {
   erro?: React.ReactNode;
   children: React.ReactNode;
-  /** Abaixo do cartão (ex.: "Não tem conta? Criar conta"). */
   rodape?: React.ReactNode;
 }) {
   return (
@@ -42,7 +40,6 @@ export function AuthShell({
   );
 }
 
-/** Divisor "ou" entre o formulário e o botão do Google. */
 export function DivisorOu() {
   return (
     <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted" aria-hidden>

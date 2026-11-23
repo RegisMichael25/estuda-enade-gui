@@ -9,10 +9,6 @@ import { api, tokenStorage } from '@/api/client';
 import { ModalSenha } from '@/components/auth/ModalSenha';
 import { AvisoSemSenha } from '@/components/auth/AvisoSemSenha';
 
-/**
- * Professor cadastrado sem convite: só é liberado quando um professor já aprovado aprovar (Gestão Docente).
- * O domínio do e-mail não libera ninguém, porque alunos também têm e-mail institucional.
- */
 export function CadastroPendentePage() {
   const { usuario, sair } = useAuth();
   const { toast } = useToast();
