@@ -25,10 +25,13 @@ import { AlunoTurmasPage } from '@/pages/aluno/AlunoTurmasPage';
 import { ProfessorInicioPage } from '@/pages/professor/ProfessorInicioPage';
 import { ProfessorQuestoesPage } from '@/pages/professor/ProfessorQuestoesPage';
 import { ProfessorNovaQuestaoPage } from '@/pages/professor/ProfessorNovaQuestaoPage';
-import { ProfessorAtividadesPage } from '@/pages/professor/ProfessorAtividadesPage';
-import { ProfessorResultadosPage } from '@/pages/professor/ProfessorResultadosPage';
 import { ProfessorDocentesPage } from '@/pages/professor/ProfessorDocentesPage';
 import { ProfessorCursosPage } from '@/pages/professor/ProfessorCursosPage';
+import { ProfessorTurmasPage } from '@/pages/professor/ProfessorTurmasPage';
+import { ProfessorTurmaPage } from '@/pages/professor/turma/ProfessorTurmaPage';
+import { TurmaAlunosAba } from '@/pages/professor/turma/TurmaAlunosAba';
+import { TurmaAtividadesAba } from '@/pages/professor/turma/TurmaAtividadesAba';
+import { TurmaResultadosAba } from '@/pages/professor/turma/TurmaResultadosAba';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,11 +88,15 @@ export function App() {
                 <Route element={<PrivateRoute papel="PROFESSOR" />}>
                   <Route path="/professor" element={<ProfessorLayout />}>
                     <Route index element={<ProfessorInicioPage />} />
+                    <Route path="turmas" element={<ProfessorTurmasPage />} />
+                    <Route path="turmas/:id" element={<ProfessorTurmaPage />}>
+                      <Route index element={<TurmaAlunosAba />} />
+                      <Route path="atividades" element={<TurmaAtividadesAba />} />
+                      <Route path="resultados" element={<TurmaResultadosAba />} />
+                      <Route path="resultados/:atividadeId" element={<TurmaResultadosAba />} />
+                    </Route>
                     <Route path="questoes" element={<ProfessorQuestoesPage />} />
                     <Route path="questoes/nova" element={<ProfessorNovaQuestaoPage />} />
-                    <Route path="atividades" element={<ProfessorAtividadesPage />} />
-                    <Route path="atividades/:id/resultados" element={<ProfessorResultadosPage />} />
-                    <Route path="resultados" element={<ProfessorResultadosPage />} />
                     <Route path="cursos" element={<ProfessorCursosPage />} />
                     <Route path="docentes" element={<ProfessorDocentesPage />} />
                   </Route>

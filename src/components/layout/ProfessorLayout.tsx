@@ -1,29 +1,29 @@
-import { useState, useEffect } from 'react';
-import { Outlet, NavLink, Link } from 'react-router-dom';
+import { Outlet, NavLink } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/api/client';
-import type { Turma, Curso } from '@/api/models';
-import {
-  Home,
-  ListFilter,
-  FileText,
-  BarChart2,
-  Users,
-  GraduationCap,
-  LogOut,
-  Plus
-} from 'lucide-react';
-import { Tag } from '@/components/ui/Tag';
-import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Combobox } from '@/components/ui/Combobox';
-import { useToast } from '@/components/ui/Toast';
+import { Home, ListFilter, Users, GraduationCap, LogOut, School } from 'lucide-react';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
+
+interface ItemMenu {
+  para: string;
+  rotulo: string;
+  /** Rótulo curto da barra inferior do celular; sem ele, o item não aparece lá. */
+  rotuloCurto?: string;
+  icone: LucideIcon;
+  exata?: boolean;
+}
+
+/** Atividades e resultados ficam dentro de cada turma (Turmas → turma → abas). */
+const MENU: ItemMenu[] = [
+  { para: '/professor', rotulo: 'Início', rotuloCurto: 'Início', icone: Home, exata: true },
+  { para: '/professor/turmas', rotulo: 'Turmas', rotuloCurto: 'Turmas', icone: School },
+  { para: '/professor/questoes', rotulo: 'Banco de Questões', rotuloCurto: 'Questões', icone: ListFilter },
+  { para: '/professor/cursos', rotulo: 'Cursos', icone: GraduationCap },
+  { para: '/professor/docentes', rotulo: 'Gestão Docente', icone: Users },
+];
 
 export function ProfessorLayout() {
   const { usuario, sair } = useAuth();
-  const { toast } = useToast();
   const confirmar = useConfirmacao();
 
   async function handleSair() {
@@ -33,82 +33,6 @@ export function ProfessorLayout() {
       rotuloConfirmar: 'Sair',
     });
     if (ok) sair();
-  }
-  const [turmas, setTurmas] = useState<Turma[]>([]);
-  const [turmaSelecionada, setTurmaSelecionada] = useState<Turma | null>(null);
-
-  // Modal Criar Turma
-  const [modalCriarTurmaAberta, setModalCriarTurmaAberta] = useState(false);
-  const [nomeTurma, setNomeTurma] = useState('');
-  const [periodoTurma, setPeriodoTurma] = useState('2026.2');
-  const [cursoTurmaId, setCursoTurmaId] = useState('');
-  const [cursos, setCursos] = useState<Curso[]>([]);
-  const [criandoTurma, setCriandoTurma] = useState(false);
-
-  async function carregarTurmas() {
-    try {
-      const lista = await api.professor.obterTurmas();
-      setTurmas(lista);
-      if (lista.length > 0) {
-        const salva = localStorage.getItem('estuda_enade_turma_ativa');
-        const encontrada = lista.find((t) => t.id === salva) || lista[0];
-        setTurmaSelecionada(encontrada);
-      }
-    } catch (err) {
-      console.error('Erro ao carregar turmas:', err);
-    }
-  }
-
-  useEffect(() => {
-    carregarTurmas();
-  }, []);
-
-  async function abrirModalCriarTurma() {
-    setModalCriarTurmaAberta(true);
-    try {
-      const listaCursos = await api.catalogo.obterCursos();
-      setCursos(listaCursos);
-      if (listaCursos.length > 0) setCursoTurmaId(listaCursos[0].id);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function handleCriarTurma(e: React.FormEvent) {
-    e.preventDefault();
-    if (!nomeTurma.trim() || !cursoTurmaId) {
-      toast('Informe o nome da turma e selecione o curso.');
-      return;
-    }
-
-    setCriandoTurma(true);
-    try {
-      const nova = await api.professor.criarTurma({
-        nome: nomeTurma.trim(),
-        periodo: periodoTurma.trim() || undefined,
-        cursoId: cursoTurmaId
-      });
-
-      toast('Turma criada com sucesso!');
-      setModalCriarTurmaAberta(false);
-      setNomeTurma('');
-      setPeriodoTurma('2026.2');
-
-      await carregarTurmas();
-      handleTrocarTurma(nova);
-    } catch (err: any) {
-      toast(err.mensagem || 'Erro ao criar turma.');
-    } finally {
-      setCriandoTurma(false);
-    }
-  }
-
-  function handleTrocarTurma(t: Turma) {
-    setTurmaSelecionada(t);
-    if (t.id) {
-      localStorage.setItem('estuda_enade_turma_ativa', t.id);
-    }
-    window.dispatchEvent(new CustomEvent('estuda-enade-turma-trocada', { detail: t }));
   }
 
   return (
@@ -123,12 +47,6 @@ export function ProfessorLayout() {
             estuda<span className="text-orange">.enade</span>
           </span>
         </div>
-
-        {turmaSelecionada && (
-          <Tag color="lilac" className="text-xs">
-            {turmaSelecionada.nome}
-          </Tag>
-        )}
 
         <button
           onClick={handleSair}
@@ -151,130 +69,25 @@ export function ProfessorLayout() {
           </span>
         </div>
 
-        {/* Card Seletor de Turma */}
-        <div className="bg-lilac border-[2.5px] border-ink rounded-xl p-3 shadow-brutal-sm flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink/70">
-              Turma Ativa
-            </span>
-            <button
-              onClick={abrirModalCriarTurma}
-              title="Nova Turma"
-              className="text-[10px] font-bold text-ink underline hover:text-orange cursor-pointer flex items-center gap-0.5"
-            >
-              <Plus className="w-3 h-3" />
-              Nova
-            </button>
-          </div>
-
-          {turmas.length > 0 ? (
-            <Combobox
-              tamanho="sm"
-              placeholder="Buscar turma"
-              opcoes={turmas.map((t) => ({
-                valor: t.id,
-                rotulo: t.periodo ? `${t.nome} (${t.periodo})` : t.nome,
-              }))}
-              valor={turmaSelecionada?.id}
-              aoMudar={(id) => {
-                const encontrada = turmas.find((t) => t.id === id);
-                if (encontrada) handleTrocarTurma(encontrada);
-              }}
-            />
-          ) : (
-            <Button size="sm" variant="secondary" onClick={abrirModalCriarTurma}>
-              <Plus className="w-3.5 h-3.5" />
-              Criar primeira turma
-            </Button>
-          )}
-        </div>
-
         {/* Navegação principal */}
         <nav className="flex flex-col gap-1.5 flex-1 mt-2">
-          <NavLink
-            to="/professor"
-            end
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
-                isActive
-                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                  : 'border-transparent text-ink hover:bg-bg'
-              }`
-            }
-          >
-            <Home className="w-4 h-4 flex-none" />
-            Início
-          </NavLink>
-
-          <NavLink
-            to="/professor/questoes"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
-                isActive
-                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                  : 'border-transparent text-ink hover:bg-bg'
-              }`
-            }
-          >
-            <ListFilter className="w-4 h-4 flex-none" />
-            Banco de Questões
-          </NavLink>
-
-          <NavLink
-            to="/professor/atividades"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
-                isActive
-                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                  : 'border-transparent text-ink hover:bg-bg'
-              }`
-            }
-          >
-            <FileText className="w-4 h-4 flex-none" />
-            Atividades & Simulados
-          </NavLink>
-
-          <NavLink
-            to="/professor/resultados"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
-                isActive
-                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                  : 'border-transparent text-ink hover:bg-bg'
-              }`
-            }
-          >
-            <BarChart2 className="w-4 h-4 flex-none" />
-            Resultados da Turma
-          </NavLink>
-
-          <NavLink
-            to="/professor/cursos"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
-                isActive
-                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                  : 'border-transparent text-ink hover:bg-bg'
-              }`
-            }
-          >
-            <GraduationCap className="w-4 h-4 flex-none" />
-            Cursos
-          </NavLink>
-
-          <NavLink
-            to="/professor/docentes"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
-                isActive
-                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                  : 'border-transparent text-ink hover:bg-bg'
-              }`
-            }
-          >
-            <Users className="w-4 h-4 flex-none" />
-            Gestão Docente
-          </NavLink>
+          {MENU.map(({ para, rotulo, icone: Icone, exata }) => (
+            <NavLink
+              key={para}
+              to={para}
+              end={exata}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-[2.5px] font-bold text-sm transition-all ${
+                  isActive
+                    ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
+                    : 'border-transparent text-ink hover:bg-bg'
+                }`
+              }
+            >
+              <Icone className="w-4 h-4 flex-none" />
+              {rotulo}
+            </NavLink>
+          ))}
         </nav>
 
         {/* Rodapé do usuário */}
@@ -300,143 +113,29 @@ export function ProfessorLayout() {
 
       {/* Conteúdo principal */}
       <main className="flex-1 p-4 lg:p-8 pb-20 lg:pb-8 overflow-y-auto max-w-6xl mx-auto w-full">
-        <Outlet context={{ turmaSelecionada, turmas, setTurmas }} />
+        <Outlet />
       </main>
 
       {/* Navegação Mobile Inferior */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-paper border-t-[2.5px] border-ink p-2 flex items-center justify-around shadow-brutal">
-        <NavLink
-          to="/professor"
-          end
-          className={({ isActive }) =>
-            `flex-1 py-1 px-2 rounded-xl border-2 flex flex-col items-center gap-0.5 text-[11px] font-bold transition-all ${
-              isActive
-                ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                : 'border-transparent text-muted hover:text-ink'
-            }`
-          }
-        >
-          <Home className="w-4 h-4" />
-          Início
-        </NavLink>
-
-        <NavLink
-          to="/professor/questoes"
-          className={({ isActive }) =>
-            `flex-1 py-1 px-2 rounded-xl border-2 flex flex-col items-center gap-0.5 text-[11px] font-bold transition-all ${
-              isActive
-                ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                : 'border-transparent text-muted hover:text-ink'
-            }`
-          }
-        >
-          <ListFilter className="w-4 h-4" />
-          Questões
-        </NavLink>
-
-        <NavLink
-          to="/professor/atividades"
-          className={({ isActive }) =>
-            `flex-1 py-1 px-2 rounded-xl border-2 flex flex-col items-center gap-0.5 text-[11px] font-bold transition-all ${
-              isActive
-                ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                : 'border-transparent text-muted hover:text-ink'
-            }`
-          }
-        >
-          <FileText className="w-4 h-4" />
-          Atividades
-        </NavLink>
-
-        <NavLink
-          to="/professor/resultados"
-          className={({ isActive }) =>
-            `flex-1 py-1 px-2 rounded-xl border-2 flex flex-col items-center gap-0.5 text-[11px] font-bold transition-all ${
-              isActive
-                ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
-                : 'border-transparent text-muted hover:text-ink'
-            }`
-          }
-        >
-          <BarChart2 className="w-4 h-4" />
-          Resultados
-        </NavLink>
+        {MENU.filter((m) => m.rotuloCurto).map(({ para, rotuloCurto, icone: Icone, exata }) => (
+          <NavLink
+            key={para}
+            to={para}
+            end={exata}
+            className={({ isActive }) =>
+              `flex-1 py-1 px-2 rounded-xl border-2 flex flex-col items-center gap-0.5 text-[11px] font-bold transition-all ${
+                isActive
+                  ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
+                  : 'border-transparent text-muted hover:text-ink'
+              }`
+            }
+          >
+            <Icone className="w-4 h-4" />
+            {rotuloCurto}
+          </NavLink>
+        ))}
       </nav>
-
-      {/* Modal Criar Turma */}
-      <Modal
-        aberto={modalCriarTurmaAberta}
-        aoFechar={() => setModalCriarTurmaAberta(false)}
-        titulo="Criar Nova Turma"
-      >
-        <form onSubmit={handleCriarTurma} className="flex flex-col gap-4">
-          <Input
-            label="Nome da Turma"
-            placeholder="Ex: ADS — Turma B"
-            value={nomeTurma}
-            onChange={(e) => setNomeTurma(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <Input
-            label="Período / Semestre"
-            placeholder="Ex: 2026.2"
-            value={periodoTurma}
-            onChange={(e) => setPeriodoTurma(e.target.value)}
-          />
-
-          <Combobox
-            label="Curso"
-            opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
-            valor={cursoTurmaId}
-            aoMudar={setCursoTurmaId}
-            required
-          />
-          {cursos.length === 0 ? (
-            <p className="text-xs text-muted -mt-2">
-              Nenhum curso cadastrado.{' '}
-              <Link
-                to="/professor/cursos"
-                onClick={() => setModalCriarTurmaAberta(false)}
-                className="font-bold text-ink underline hover:text-orange"
-              >
-                Cadastre um curso
-              </Link>{' '}
-              antes de criar a turma.
-            </p>
-          ) : (
-            <p className="text-xs text-muted -mt-2">
-              Não encontrou o curso?{' '}
-              <Link
-                to="/professor/cursos"
-                onClick={() => setModalCriarTurmaAberta(false)}
-                className="font-bold text-ink underline hover:text-orange"
-              >
-                Gerencie em Cursos
-              </Link>
-              .
-            </p>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2 border-t-2 border-ink/20">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setModalCriarTurmaAberta(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              carregando={criandoTurma}
-            >
-              Criar turma
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

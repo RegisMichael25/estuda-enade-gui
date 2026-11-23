@@ -1,34 +1,31 @@
 import { useState, useEffect } from 'react';
-import { useParams, useOutletContext, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { Turma, Atividade, ResultadosAtividade } from '@/api/models';
+import type { Atividade, ResultadosAtividade } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { ProgressMeter } from '@/components/ui/Tag';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
 import { Combobox } from '@/components/ui/Combobox';
+import { useTurma } from './ProfessorTurmaPage';
 
-interface ContextType {
-  turmaSelecionada: Turma | null;
-}
-
-export function ProfessorResultadosPage() {
-  const { id } = useParams<{ id: string }>();
+export function TurmaResultadosAba() {
+  const { atividadeId } = useParams<{ atividadeId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { turmaSelecionada } = useOutletContext<ContextType>();
+  const { turma } = useTurma();
 
   const [atividades, setAtividades] = useState<Atividade[]>([]);
-  const [atividadeIdAtiva, setAtividadeIdAtiva] = useState<string>(id || '');
+  const [atividadeIdAtiva, setAtividadeIdAtiva] = useState<string>(atividadeId || '');
   const [resultados, setResultados] = useState<ResultadosAtividade | null>(null);
   const [carregando, setCarregando] = useState(true);
 
   // Carrega lista de atividades da turma para o seletor
   useEffect(() => {
     async function carregarLista() {
-      if (!turmaSelecionada) return;
       try {
-        const lista = await api.professor.obterAtividadesTurma(turmaSelecionada.id);
+        // Rascunhos ainda não têm resultado.
+        const lista = (await api.professor.obterAtividadesTurma(turma.id)).filter((a) => a.status !== 'RASCUNHO');
         setAtividades(lista);
         if (!atividadeIdAtiva && lista.length > 0) {
           setAtividadeIdAtiva(lista[0].id);
@@ -38,7 +35,12 @@ export function ProfessorResultadosPage() {
       }
     }
     carregarLista();
-  }, [turmaSelecionada]);
+  }, [turma.id]);
+
+  // Link direto para outra atividade (ex.: vindo do painel inicial)
+  useEffect(() => {
+    if (atividadeId) setAtividadeIdAtiva(atividadeId);
+  }, [atividadeId]);
 
   // Carrega resultados da atividade selecionada
   useEffect(() => {
@@ -60,24 +62,17 @@ export function ProfessorResultadosPage() {
     carregarResultados();
   }, [atividadeIdAtiva, toast]);
 
-  if (!turmaSelecionada) return null;
-
   const tempoMedioMinutos = resultados?.tempoMedioSegundos
     ? Math.round(resultados.tempoMedioSegundos / 60)
     : null;
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Cabeçalho & Seletor de Atividade */}
+      {/* Seletor de Atividade */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold font-title text-ink">
-            Resultados & Aprendizagem
-          </h1>
-          <p className="text-xs lg:text-sm text-muted">
-            Acompanhamento agregado e individual dos alunos da turma.
-          </p>
-        </div>
+        <p className="text-xs lg:text-sm text-muted">
+          Acompanhamento agregado e individual dos alunos em cada atividade.
+        </p>
 
         {atividades.length > 0 && (
           <div className="w-full sm:w-64">
@@ -88,7 +83,7 @@ export function ProfessorResultadosPage() {
               valor={atividadeIdAtiva}
               aoMudar={(id) => {
                 setAtividadeIdAtiva(id);
-                navigate(`/professor/atividades/${id}/resultados`);
+                navigate(`/professor/turmas/${turma.id}/resultados/${id}`, { replace: true });
               }}
             />
           </div>
@@ -102,7 +97,9 @@ export function ProfessorResultadosPage() {
       ) : !resultados ? (
         <Card className="p-8 text-center bg-paper">
           <p className="text-sm font-bold text-muted">
-            Nenhuma atividade selecionada ou sem dados no momento.
+            {atividades.length === 0
+              ? 'Nenhuma atividade publicada nesta turma ainda.'
+              : 'Nenhuma atividade selecionada ou sem dados no momento.'}
           </p>
         </Card>
       ) : (
