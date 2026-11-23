@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { DesempenhoAluno, TentativaEstado } from '@/api/models';
+import type { DesempenhoAluno, TentativaResumo } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { ProgressMeter } from '@/components/ui/Tag';
 import { Tag } from '@/components/ui/Tag';
@@ -10,7 +10,7 @@ import { ArrowRight } from 'lucide-react';
 export function AlunoDesempenhoPage() {
   const navigate = useNavigate();
   const [desempenho, setDesempenho] = useState<DesempenhoAluno | null>(null);
-  const [tentativas, setTentativas] = useState<TentativaEstado[]>([]);
+  const [tentativas, setTentativas] = useState<TentativaResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export function AlunoDesempenhoPage() {
       try {
         const [dadosDesempenho, historico] = await Promise.all([
           api.aluno.obterDesempenho(),
-          api.aluno.obterHistoricoTentativas().catch((): TentativaEstado[] => [])
+          api.aluno.obterHistoricoTentativas().catch((): TentativaResumo[] => [])
         ]);
         setDesempenho(dadosDesempenho);
         setTentativas(historico);
@@ -117,30 +117,47 @@ export function AlunoDesempenhoPage() {
             </p>
           </Card>
         ) : (
-          tentativas.map((t) => (
-            <Card
-              key={t.id}
-              interactive
-              onClick={() => navigate(`/aluno/tentativa/${t.id}/resultado`)}
-              className="p-3.5 flex items-center justify-between gap-3 bg-paper"
-            >
-              <div>
-                <h4 className="font-bold text-xs text-ink">{t.titulo}</h4>
-                <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5">
-                  <span>Tentativa #{t.numero}</span>
-                  <span>•</span>
-                  <span>{t.finalizada ? 'Finalizada' : 'Em andamento'}</span>
+          tentativas.map((t) => {
+            const finalizada = Boolean(t.finalizadaEm || (t as any).finalizada);
+            return (
+              <Card
+                key={t.id}
+                interactive
+                onClick={() =>
+                  navigate(
+                    finalizada
+                      ? `/aluno/tentativa/${t.id}/resultado`
+                      : `/aluno/tentativa/${t.id}`
+                  )
+                }
+                className="p-3.5 flex items-center justify-between gap-3 bg-paper"
+              >
+                <div>
+                  <h4 className="font-bold text-xs text-ink">{t.titulo}</h4>
+                  <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5">
+                    <span>Tentativa #{t.numero}</span>
+                    <span>•</span>
+                    <span>{finalizada ? 'Finalizada' : 'Em andamento'}</span>
+                    {finalizada && t.acertos != null && (
+                      <>
+                        <span>•</span>
+                        <span>
+                          {t.acertos}/{t.total} acertos
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Tag color={t.finalizada ? 'green' : 'yellow'}>
-                  {t.finalizada ? 'Concluída' : 'Em aberto'}
-                </Tag>
-                <ArrowRight className="w-4 h-4 text-muted" />
-              </div>
-            </Card>
-          ))
+                <div className="flex items-center gap-2">
+                  <Tag color={finalizada ? 'green' : 'yellow'}>
+                    {finalizada ? 'Concluída' : 'Em aberto'}
+                  </Tag>
+                  <ArrowRight className="w-4 h-4 text-muted" />
+                </div>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>
