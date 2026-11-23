@@ -17,6 +17,7 @@ import type {
   AtividadeDetalhe,
   AtividadeAluno,
   TentativaEstado,
+  TentativaResumo,
   ResultadoTentativa,
   DesempenhoAluno,
   Gabarito,
@@ -336,8 +337,8 @@ export const api = {
       return request<ResultadoTentativa>(`/aluno/tentativas/${tentativaId}/resultado`);
     },
 
-    obterHistoricoTentativas(): Promise<TentativaEstado[]> {
-      return request<TentativaEstado[]>('/aluno/tentativas');
+    obterHistoricoTentativas(): Promise<TentativaResumo[]> {
+      return request<TentativaResumo[]>('/aluno/tentativas');
     },
 
     // Mural de comentários da atividade
@@ -656,8 +657,21 @@ export const api = {
       });
     },
 
+    excluirQuestao(questaoId: string): Promise<void> {
+      return request<void>(`/professor/questoes/${questaoId}`, {
+        method: 'DELETE'
+      });
+    },
+
     obterSinalizacoesQuestao(questaoId: string): Promise<Sinalizacao[]> {
       return request<Sinalizacao[]>(`/professor/questoes/${questaoId}/sinalizacoes`);
+    },
+
+    sinalizarQuestao(questaoId: string, motivo: string): Promise<void> {
+      return request<void>(`/professor/questoes/${questaoId}/sinalizacoes`, {
+        method: 'POST',
+        body: JSON.stringify({ motivo })
+      });
     },
 
     resolverSinalizacoes(questaoId: string): Promise<void> {

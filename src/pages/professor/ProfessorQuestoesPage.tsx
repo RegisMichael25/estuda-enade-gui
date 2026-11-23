@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { Questao, Sinalizacao } from '@/api/models';
 import { Card } from '@/components/ui/Card';
@@ -9,10 +9,13 @@ import { Tag, Badge } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { Plus, Flag, EyeOff, Check } from 'lucide-react';
+import { Plus, Flag, EyeOff, Check, Pencil, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
 
 export function ProfessorQuestoesPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { toast } = useToast();
   const confirmar = useConfirmacao();
 
@@ -21,13 +24,42 @@ export function ProfessorQuestoesPage() {
   const [carregando, setCarregando] = useState(false);
 
   // Filtro em etapas: a lista só carrega depois de escolher o curso
-  const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(filtroVazio());
+  const cursoIdInicial = searchParams.get('cursoId') || (location.state as any)?.cursoId || '';
+  const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(() => filtroVazio(cursoIdInicial));
+
+  // Sincroniza se searchParams ou location.state mudarem
+  useEffect(() => {
+    const cId = searchParams.get('cursoId') || (location.state as any)?.cursoId || '';
+    if (cId && cId !== filtro.cursoId) {
+      setFiltro((prev) => ({ ...prev, cursoId: cId }));
+    }
+  }, [searchParams, location.state]);
+
+  function handleMudarFiltro(novoFiltro: ValorFiltroQuestoes) {
+    setFiltro(novoFiltro);
+    if (novoFiltro.cursoId) {
+      setSearchParams({ cursoId: novoFiltro.cursoId }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }
 
   // Modal de Sinalizações
   const [modalSinalizacaoAberta, setModalSinalizacaoAberta] = useState(false);
   const [sinalizacoesQuestao, setSinalizacoesQuestao] = useState<Sinalizacao[]>([]);
   const [questaoSinalizadaAtiva, setQuestaoSinalizadaAtiva] = useState<Questao | null>(null);
   const [resolvendoSinalizacao, setResolvendoSinalizacao] = useState(false);
+
+  // Modal para professor enviar nova sinalização
+  const [modalNovaSinalizacaoAberta, setModalNovaSinalizacaoAberta] = useState(false);
+  const [questaoParaSinalizar, setQuestaoParaSinalizar] = useState<Questao | null>(null);
+
+  // Estados para expandir gabarito/alternativas de cada questão
+  const [questoesExpandidas, setQuestoesExpandidas] = useState<Record<string, boolean>>({});
+
+  function toggleExpandirQuestao(id: string) {
+    setQuestoesExpandidas((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
 
   async function carregar() {
     if (!filtro.cursoId) {
@@ -93,6 +125,23 @@ export function ProfessorQuestoesPage() {
     }
   }
 
+  async function handleExcluirQuestao(q: Questao) {
+    const ok = await confirmar({
+      titulo: 'Excluir rascunho de questão?',
+      mensagem: 'O rascunho desta questão será apagado. Essa ação não pode ser desfeita.',
+      rotuloConfirmar: 'Excluir',
+      perigo: true,
+    });
+    if (!ok) return;
+    try {
+      await api.professor.excluirQuestao(q.id);
+      toast('Questão excluída.');
+      await carregar();
+    } catch (err: any) {
+      toast(err.mensagem || 'Erro ao excluir questão.');
+    }
+  }
+
   async function handleVerSinalizacoes(q: Questao) {
     setQuestaoSinalizadaAtiva(q);
     try {
@@ -142,7 +191,7 @@ export function ProfessorQuestoesPage() {
         <Button
           variant="primary"
           size="md"
-          onClick={() => navigate('/professor/questoes/nova')}
+          onClick={() => navigate('/professor/questoes/nova', { state: { cursoId: filtro.cursoId } })}
         >
           <Plus className="w-4 h-4" />
           Nova questão
@@ -151,10 +200,11 @@ export function ProfessorQuestoesPage() {
 
       <FiltroQuestoes
         valor={filtro}
-        aoMudar={setFiltro}
+        aoMudar={handleMudarFiltro}
         obterAnos={api.professor.obterAnosBanco}
         filtrosDoBanco
         total={total}
+        iniciarRecolhido={false}
       />
 
       {/* Lista de Questões */}
@@ -206,17 +256,91 @@ export function ProfessorQuestoesPage() {
                   </div>
                 </div>
 
-                <p className="text-sm font-medium text-ink leading-relaxed">
+                <p className="text-sm font-medium text-ink leading-relaxed whitespace-pre-wrap">
                   {q.enunciado}
                 </p>
 
+                {/* Gabarito e Alternativas expandido da questão */}
+                {questoesExpandidas[q.id] && (
+                  <div className="mt-1 pt-2.5 border-t border-ink/15 flex flex-col gap-2 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted">
+                        Gabarito Oficial & Alternativas
+                      </span>
+                      <BotaoSinalizar
+                        onClick={() => {
+                          setQuestaoParaSinalizar(q);
+                          setModalNovaSinalizacaoAberta(true);
+                        }}
+                        title="Sinalizar problema no gabarito ou justificativa"
+                        variante="pill"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      {q.alternativas?.map((alt, idx) => {
+                        const letra = alt.letra || String.fromCharCode(65 + idx);
+                        const eCorreta = alt.correta === true;
+
+                        return (
+                          <div
+                            key={alt.id || idx}
+                            className={`p-2.5 rounded-xl border-2 text-xs flex items-start gap-2 ${eCorreta
+                                ? 'bg-green/25 border-green font-bold text-ink'
+                                : 'bg-bg/40 border-ink/20 text-ink/90'
+                              }`}
+                          >
+                            <span className="w-5 h-5 rounded border border-ink/40 bg-paper flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
+                              {letra}
+                            </span>
+                            <span className="flex-1 leading-snug">
+                              {alt.texto}
+                              {eCorreta && (
+                                <span className="ml-2 font-bold text-emerald-800 text-[11px]">
+                                  ✓ (Gabarito Oficial)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {q.explicacao && (
+                      <div className="p-2.5 bg-yellow/25 border-2 border-ink/30 rounded-xl text-xs text-ink mt-1">
+                        <b>Justificativa Pedagógica do Gabarito:</b> {q.explicacao}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Ações da Questão */}
-                <div className="flex items-center justify-between pt-2 border-t border-ink/20 text-xs">
-                  <span className="text-muted font-medium">
-                    {q.alternativas?.length || 5} alternativas
-                  </span>
+                <div className="flex items-center justify-between pt-2 border-t border-ink/20 text-xs flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpandirQuestao(q.id)}
+                    className="text-muted hover:text-ink font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    title={questoesExpandidas[q.id] ? 'Ocultar gabarito' : 'Ver gabarito e alternativas'}
+                  >
+                    <span>{q.alternativas?.length || 5} alternativas</span>
+                    <span className="text-ink/60">· {questoesExpandidas[q.id] ? 'Ocultar gabarito' : 'Ver gabarito'}</span>
+                    {questoesExpandidas[q.id] ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-muted" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-muted" />
+                    )}
+                  </button>
 
                   <div className="flex items-center gap-2">
+                    {/* Botão singelo de sinalização para professor com bandeira */}
+                    <BotaoSinalizar
+                      onClick={() => {
+                        setQuestaoParaSinalizar(q);
+                        setModalNovaSinalizacaoAberta(true);
+                      }}
+                      title="Sinalizar problema nesta questão ou gabarito"
+                    />
+
                     {temSinalizacao && (
                       <Button
                         variant="yellow"
@@ -230,12 +354,33 @@ export function ProfessorQuestoesPage() {
 
                     {q.minha && q.status === 'RASCUNHO' && (
                       <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => navigate(`/professor/questoes/${q.id}/editar`, { state: { cursoId: q.curso.id } })}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Editar
+                      </Button>
+                    )}
+
+                    {q.minha && q.status === 'RASCUNHO' && (
+                      <Button
                         variant="green"
                         size="sm"
                         onClick={() => handlePublicarQuestao(q)}
                       >
                         <Check className="w-3.5 h-3.5" />
                         Publicar
+                      </Button>
+                    )}
+
+                    {q.minha && q.status === 'RASCUNHO' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleExcluirQuestao(q)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-pink" />
                       </Button>
                     )}
 
@@ -257,11 +402,11 @@ export function ProfessorQuestoesPage() {
         )}
       </div>
 
-      {/* Modal de Sinalizações */}
+      {/* Modal de Ver / Resolver Sinalizações */}
       <Modal
         aberto={modalSinalizacaoAberta}
         aoFechar={() => setModalSinalizacaoAberta(false)}
-        titulo="Sinalizações reportadas por alunos"
+        titulo="Sinalizações reportadas na questão"
       >
         <div className="flex flex-col gap-3">
           <p className="text-xs text-muted">
@@ -296,6 +441,19 @@ export function ProfessorQuestoesPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Modal para professor sinalizar erro com limite de tamanho */}
+      <ModalSinalizarQuestao
+        aberto={modalNovaSinalizacaoAberta}
+        aoFechar={() => {
+          setModalNovaSinalizacaoAberta(false);
+          setQuestaoParaSinalizar(null);
+        }}
+        questaoId={questaoParaSinalizar?.id ?? null}
+        papel="professor"
+        titulo="Sinalizar problema na questão ou gabarito"
+        onSucesso={carregar}
+      />
     </div>
   );
 }

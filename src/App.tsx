@@ -107,6 +107,7 @@ export function App() {
                     </Route>
                     <Route path="questoes" element={<ProfessorQuestoesPage />} />
                     <Route path="questoes/nova" element={<ProfessorNovaQuestaoPage />} />
+                    <Route path="questoes/:id/editar" element={<ProfessorNovaQuestaoPage />} />
                     <Route path="cursos" element={<ProfessorCursosPage />} />
                     <Route path="docentes" element={<ProfessorDocentesPage />} />
                   </Route>

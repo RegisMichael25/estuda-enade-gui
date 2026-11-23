@@ -6,11 +6,10 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
 import { Tag } from '@/components/ui/Tag';
-import { Modal } from '@/components/ui/Modal';
-import { Textarea } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { ArrowLeft, Flag, CheckCircle, XCircle, ArrowRight, BookOpen } from 'lucide-react';
+import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
 
 export function AlunoPraticaPage() {
   const navigate = useNavigate();
@@ -32,8 +31,6 @@ export function AlunoPraticaPage() {
 
   // Modal de sinalização
   const [modalSinalizarAberto, setModalSinalizarAberto] = useState(false);
-  const [motivoSinalizacao, setMotivoSinalizacao] = useState('');
-  const [enviandoSinalizacao, setEnviandoSinalizacao] = useState(false);
 
   // Atualizar contagem prévia de questões encontradas
   useEffect(() => {
@@ -129,22 +126,6 @@ export function AlunoPraticaPage() {
     }
   }
 
-  async function handleEnviarSinalizacao() {
-    if (!motivoSinalizacao.trim() || !questoes[indiceAtual]) return;
-
-    setEnviandoSinalizacao(true);
-    try {
-      await api.aluno.sinalizarQuestao(questoes[indiceAtual].id, motivoSinalizacao.trim());
-      toast('Questão sinalizada para revisão dos professores!');
-      setModalSinalizarAberto(false);
-      setMotivoSinalizacao('');
-    } catch (err: any) {
-      toast(err.mensagem || 'Erro ao enviar sinalização.');
-    } finally {
-      setEnviandoSinalizacao(false);
-    }
-  }
-
   const qAtual = questoes[indiceAtual];
 
   // ================= TELA DE RESOLUÇÃO =================
@@ -168,9 +149,13 @@ export function AlunoPraticaPage() {
           <Tag color="blue">{qAtual.tema.nome}</Tag>
         </div>
 
-        {/* Metadados da questão */}
-        <div className="text-xs font-bold text-muted">
-          ENADE {qAtual.ano} · {qAtual.curso.nome}
+        {/* Metadados da questão + Botão singelo de sinalização na questão */}
+        <div className="flex items-center justify-between text-xs font-bold text-muted">
+          <span>ENADE {qAtual.ano} · {qAtual.curso.nome}</span>
+          <BotaoSinalizar
+            onClick={() => setModalSinalizarAberto(true)}
+            title="Sinalizar problema nesta questão"
+          />
         </div>
 
         {/* Enunciado da questão */}
@@ -237,15 +222,22 @@ export function AlunoPraticaPage() {
               color={gabarito.acertou ? 'green' : 'pink'}
               className="p-4"
             >
-              <div className="flex items-center gap-2 mb-1">
-                {gabarito.acertou ? (
-                  <CheckCircle className="w-5 h-5 text-ink flex-none" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-ink flex-none" />
-                )}
-                <h4 className="font-bold text-sm font-title text-ink">
-                  {gabarito.acertou ? 'Você acertou!' : 'Resposta incorreta'} · Gabarito: Letra {gabarito.letraCorreta}
-                </h4>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  {gabarito.acertou ? (
+                    <CheckCircle className="w-5 h-5 text-ink flex-none" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-ink flex-none" />
+                  )}
+                  <h4 className="font-bold text-sm font-title text-ink">
+                    {gabarito.acertou ? 'Você acertou!' : 'Resposta incorreta'} · Gabarito: Letra {gabarito.letraCorreta}
+                  </h4>
+                </div>
+                <BotaoSinalizar
+                  onClick={() => setModalSinalizarAberto(true)}
+                  title="Sinalizar problema no gabarito ou justificativa"
+                  variante="pill"
+                />
               </div>
 
               {gabarito.explicacao && (
@@ -279,37 +271,13 @@ export function AlunoPraticaPage() {
           </div>
         )}
 
-        {/* Modal de Sinalização */}
-        <Modal
+        {/* Modal de Sinalização com limite de tamanho */}
+        <ModalSinalizarQuestao
           aberto={modalSinalizarAberto}
           aoFechar={() => setModalSinalizarAberto(false)}
-          titulo="Sinalizar problema na questão"
-        >
-          <div className="flex flex-col gap-3">
-            <p className="text-xs text-muted">
-              Encontrou algum erro no enunciado, alternativas ou gabarito? Descreva para que os professores possam revisar.
-            </p>
-            <Textarea
-              rows={3}
-              placeholder="Descreva o problema encontrado..."
-              value={motivoSinalizacao}
-              onChange={(e) => setMotivoSinalizacao(e.target.value)}
-              required
-            />
-            <div className="flex justify-end gap-2 mt-2">
-              <Button variant="ghost" onClick={() => setModalSinalizarAberto(false)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="primary"
-                carregando={enviandoSinalizacao}
-                onClick={handleEnviarSinalizacao}
-              >
-                Enviar sinalização
-              </Button>
-            </div>
-          </div>
-        </Modal>
+          questaoId={qAtual.id}
+          papel="aluno"
+        />
       </div>
     );
   }
