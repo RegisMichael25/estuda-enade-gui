@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Input';
@@ -8,6 +8,8 @@ import { Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const LIMITE_CARACTERES_SINALIZACAO = 500;
+const ALTURA_MINIMA = 90; // px
+const ALTURA_MAXIMA = 220; // px
 
 export interface ModalSinalizarQuestaoProps {
   aberto: boolean;
@@ -29,10 +31,44 @@ export function ModalSinalizarQuestao({
   const { toast } = useToast();
   const [motivo, setMotivo] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const usuarioRedimensionou = useRef(false);
+
+  // Auto-ajuste de altura de acordo com o texto digitado (se o usuário não arrastou manualmente)
+  useEffect(() => {
+    if (!aberto) {
+      setMotivo('');
+      usuarioRedimensionou.current = false;
+      return;
+    }
+
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    if (!usuarioRedimensionou.current) {
+      // Redefine temporariamente para auto para calcular o scrollHeight real do conteúdo
+      textarea.style.height = 'auto';
+      // Ajusta de acordo com o conteúdo digitado, respeitando altura mínima e máxima
+      const novaAltura = Math.min(Math.max(textarea.scrollHeight, ALTURA_MINIMA), ALTURA_MAXIMA);
+      textarea.style.height = `${novaAltura}px`;
+    }
+  }, [motivo, aberto]);
 
   function handleFechar() {
     setMotivo('');
+    usuarioRedimensionou.current = false;
     aoFechar();
+  }
+
+  // Detecta se a interação do usuário foi no puxador de redimensionamento (canto inferior direito)
+  function handleMouseDown(e: React.MouseEvent<HTMLTextAreaElement>) {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const clicouNoPuxador =
+      e.clientX >= rect.right - 24 && e.clientY >= rect.bottom - 24;
+    if (clicouNoPuxador) {
+      usuarioRedimensionou.current = true;
+    }
   }
 
   async function handleEnviar() {
@@ -77,11 +113,24 @@ export function ModalSinalizarQuestao({
 
         <div className="flex flex-col gap-1.5">
           <Textarea
-            rows={4}
+            ref={textareaRef}
             placeholder="Descreva o problema encontrado na questão ou gabarito..."
             value={motivo}
-            onChange={(e) => setMotivo(e.target.value.slice(0, LIMITE_CARACTERES_SINALIZACAO))}
+            onChange={(e) => {
+              const valor = e.target.value.slice(0, LIMITE_CARACTERES_SINALIZACAO);
+              setMotivo(valor);
+              // Se o campo for totalmente apagado, restaura o auto-ajuste
+              if (!valor.trim()) {
+                usuarioRedimensionou.current = false;
+              }
+            }}
+            onMouseDown={handleMouseDown}
             maxLength={LIMITE_CARACTERES_SINALIZACAO}
+            style={{
+              minHeight: `${ALTURA_MINIMA}px`,
+              maxHeight: `${ALTURA_MAXIMA}px`
+            }}
+            className="min-h-[90px] max-h-[220px] resize-y overflow-y-auto leading-relaxed"
             required
           />
           <div className="flex justify-between items-center px-1 text-[11px] font-bold">
