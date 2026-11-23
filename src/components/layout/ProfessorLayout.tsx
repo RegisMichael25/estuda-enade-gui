@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, ListFilter, Users, GraduationCap, LogOut, School } from 'lucide-react';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
+import { ModalSenha, BotaoSenha } from '@/components/auth/ModalSenha';
+import { AvisoSemSenha } from '@/components/auth/AvisoSemSenha';
 
 interface ItemMenu {
   para: string;
@@ -25,11 +28,12 @@ const MENU: ItemMenu[] = [
 export function ProfessorLayout() {
   const { usuario, sair } = useAuth();
   const confirmar = useConfirmacao();
+  const [modalSenha, setModalSenha] = useState(false);
 
   async function handleSair() {
     const ok = await confirmar({
       titulo: 'Sair da conta?',
-      mensagem: 'Para entrar de novo, você vai precisar de um novo código de acesso enviado ao seu e-mail.',
+      mensagem: 'Para entrar de novo, use seu e-mail e senha.',
       rotuloConfirmar: 'Sair',
     });
     if (ok) sair();
@@ -48,13 +52,16 @@ export function ProfessorLayout() {
           </span>
         </div>
 
-        <button
-          onClick={handleSair}
-          title="Sair"
-          className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <BotaoSenha aoClicar={() => setModalSenha(true)} />
+          <button
+            onClick={handleSair}
+            title="Sair"
+            className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
       {/* Sidebar Desktop (fixa à esquerda) */}
@@ -101,20 +108,26 @@ export function ProfessorLayout() {
             </div>
           </div>
 
-          <button
-            onClick={handleSair}
-            title="Sair"
-            className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <BotaoSenha aoClicar={() => setModalSenha(true)} />
+            <button
+              onClick={handleSair}
+              title="Sair"
+              className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* Conteúdo principal */}
       <main className="flex-1 p-4 lg:p-8 pb-20 lg:pb-8 overflow-y-auto max-w-6xl mx-auto w-full">
+        <AvisoSemSenha aoCriarSenha={() => setModalSenha(true)} className="mb-4" />
         <Outlet />
       </main>
+
+      <ModalSenha aberto={modalSenha} aoFechar={() => setModalSenha(false)} />
 
       {/* Navegação Mobile Inferior */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-paper border-t-[2.5px] border-ink p-2 flex items-center justify-around shadow-brutal">

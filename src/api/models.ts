@@ -7,6 +7,12 @@ export type Sessao = Schemas['SessaoResponse'];
 export type Papel = Schemas['Papel'];
 export type Erro = Schemas['ErroResponse'];
 
+export type CadastrarRequest = Schemas['CadastrarRequest'];
+export type EntrarRequest = Schemas['EntrarRequest'];
+export type GoogleCadastrarRequest = Schemas['GoogleCadastrarRequest'];
+export type RedefinirSenhaRequest = Schemas['RedefinirSenhaRequest'];
+export type TrocarSenhaRequest = Schemas['TrocarSenhaRequest'];
+
 export type Curso = Schemas['ItemResponse'];
 export type Tema = Schemas['ItemResponse'];
 
@@ -51,9 +57,6 @@ export type Comentario = Schemas['ComentarioResponse'];
 export type Mural = Schemas['MuralResponse'];
 
 export type Sinalizacao = Schemas['SinalizacaoResponse'];
-export type Convite = Schemas['ConviteResponse'] & {
-  invalidado?: boolean;
-  invalidadoEm?: string | null;
-};
+export type Convite = Schemas['ConviteResponse'];
 export type ConviteCriado = Schemas['ConviteCriadoResponse'];
 export type ProfessorPendente = Schemas['ProfessorPendenteResponse'];

@@ -1,19 +1,30 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { Usuario, Papel } from '@/api/models';
+import type {
+  Usuario,
+  Sessao,
+  CadastrarRequest,
+  GoogleCadastrarRequest,
+  RedefinirSenhaRequest
+} from '@/api/models';
 import { api, tokenStorage, ApiException } from '@/api/client';
+
+export type ResultadoGoogle =
+  | { tipo: 'sessao'; usuario: Usuario }
+  | { tipo: 'cadastro-necessario'; idToken: string };
 
 interface AuthContextType {
   usuario: Usuario | null;
   autenticado: boolean;
   carregando: boolean;
-  solicitarCodigo: (email: string) => Promise<void>;
-  entrar: (payload: {
-    email: string;
-    codigo: string;
-    nome?: string;
-    papel?: Papel;
-    codigoConvite?: string;
-  }) => Promise<Usuario>;
+  entrar: (email: string, senha: string) => Promise<Usuario>;
+  cadastrar: (dados: CadastrarRequest) => Promise<Usuario>;
+  entrarComGoogle: (idToken: string) => Promise<ResultadoGoogle>;
+  cadastrarComGoogle: (dados: GoogleCadastrarRequest) => Promise<Usuario>;
+  solicitarCodigoSenha: (email: string) => Promise<void>;
+  /** Também limpa a sessão local (o backend encerra todas). */
+  redefinirSenha: (dados: RedefinirSenhaRequest) => Promise<void>;
+  solicitarCodigoTrocaSenha: () => Promise<void>;
+  trocarSenha: (codigo: string, novaSenha: string) => Promise<Usuario>;
   sair: () => Promise<void>;
   atualizarNome: (nome: string) => Promise<void>;
 }
@@ -60,22 +71,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [sincronizar]);
 
-  const solicitarCodigo = async (email: string) => {
-    await api.auth.solicitarCodigo(email);
-  };
-
-  const entrar = async (payload: {
-    email: string;
-    codigo: string;
-    nome?: string;
-    papel?: Papel;
-    codigoConvite?: string;
-  }) => {
-    const sessao = await api.auth.entrar(payload);
+  function aplicarSessao(sessao: Sessao): Usuario {
     tokenStorage.salvarSessao(sessao);
     setUsuario(sessao.usuario);
     return sessao.usuario;
+  }
+
+  const entrar = async (email: string, senha: string) =>
+    aplicarSessao(await api.auth.entrar({ email, senha }));
+
+  const cadastrar = async (dados: CadastrarRequest) => aplicarSessao(await api.auth.cadastrar(dados));
+
+  const entrarComGoogle = async (idToken: string): Promise<ResultadoGoogle> => {
+    try {
+      return { tipo: 'sessao', usuario: aplicarSessao(await api.auth.entrarComGoogle(idToken)) };
+    } catch (err) {
+      if (err instanceof ApiException && err.codigo === 'CONTA_NAO_ENCONTRADA') {
+        return { tipo: 'cadastro-necessario', idToken };
+      }
+      throw err;
+    }
   };
+
+  const cadastrarComGoogle = async (dados: GoogleCadastrarRequest) =>
+    aplicarSessao(await api.auth.cadastrarComGoogle(dados));
+
+  const solicitarCodigoSenha = async (email: string) => {
+    await api.auth.solicitarCodigoSenha(email);
+  };
+
+  const redefinirSenha = async (dados: RedefinirSenhaRequest) => {
+    await api.auth.redefinirSenha(dados);
+    tokenStorage.limpar();
+    setUsuario(null);
+  };
+
+  const solicitarCodigoTrocaSenha = async () => {
+    await api.auth.solicitarCodigoTrocaSenha();
+  };
+
+  const trocarSenha = async (codigo: string, novaSenha: string) =>
+    aplicarSessao(await api.auth.trocarSenha({ codigo, novaSenha }));
 
   const sair = async () => {
     try {
@@ -98,8 +134,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         usuario,
         autenticado: !!usuario && !!tokenStorage.getAccessToken(),
         carregando,
-        solicitarCodigo,
         entrar,
+        cadastrar,
+        entrarComGoogle,
+        cadastrarComGoogle,
+        solicitarCodigoSenha,
+        redefinirSenha,
+        solicitarCodigoTrocaSenha,
+        trocarSenha,
         sair,
         atualizarNome
       }}
@@ -116,4 +158,3 @@ export function useAuth() {
   }
   return context;
 }
-

@@ -28,7 +28,12 @@ import type {
   ProfessorPendente,
   Curso,
   Tema,
-  Erro
+  Erro,
+  CadastrarRequest,
+  EntrarRequest,
+  GoogleCadastrarRequest,
+  RedefinirSenhaRequest,
+  TrocarSenhaRequest
 } from './models';
 
 const API_BASE = '/api/v1';
@@ -169,22 +174,56 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // ===================== AUTH =====================
   auth: {
-    solicitarCodigo(email: string): Promise<void> {
-      return request<void>('/auth/codigo', {
+    cadastrar(payload: CadastrarRequest): Promise<Sessao> {
+      return request<Sessao>('/auth/cadastrar', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    entrar(payload: EntrarRequest): Promise<Sessao> {
+      return request<Sessao>('/auth/entrar', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    entrarComGoogle(idToken: string): Promise<Sessao> {
+      return request<Sessao>('/auth/google/entrar', {
+        method: 'POST',
+        body: JSON.stringify({ idToken })
+      });
+    },
+
+    cadastrarComGoogle(payload: GoogleCadastrarRequest): Promise<Sessao> {
+      return request<Sessao>('/auth/google/cadastrar', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    solicitarCodigoSenha(email: string): Promise<void> {
+      return request<void>('/auth/senha/codigo', {
         method: 'POST',
         body: JSON.stringify({ email })
       });
     },
 
-    entrar(payload: {
-      email: string;
-      codigo: string;
-      nome?: string;
-      papel?: 'ALUNO' | 'PROFESSOR';
-      codigoConvite?: string;
-    }): Promise<Sessao> {
-      return request<Sessao>('/auth/entrar', {
+    redefinirSenha(payload: RedefinirSenhaRequest): Promise<void> {
+      return request<void>('/auth/senha/redefinir', {
         method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    solicitarCodigoTrocaSenha(): Promise<void> {
+      return request<void>('/eu/senha/codigo', { method: 'POST' });
+    },
+
+    /** Código errado vem como 422, não 401, para não disparar a renovação automática. */
+    trocarSenha(payload: TrocarSenhaRequest): Promise<Sessao> {
+      return request<Sessao>('/eu/senha', {
+        method: 'PUT',
         body: JSON.stringify(payload)
       });
     },

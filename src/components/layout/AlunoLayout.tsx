@@ -1,7 +1,10 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
+import { useState } from 'react';
 import { Home, Play, BarChart2, Users, LogOut } from 'lucide-react';
+import { ModalSenha, BotaoSenha } from '@/components/auth/ModalSenha';
+import { AvisoSemSenha } from '@/components/auth/AvisoSemSenha';
 import type { LucideIcon } from 'lucide-react';
 
 const LINKS: { to: string; rotulo: string; icone: LucideIcon; end?: boolean }[] = [
@@ -14,11 +17,12 @@ const LINKS: { to: string; rotulo: string; icone: LucideIcon; end?: boolean }[] 
 export function AlunoLayout() {
   const { usuario, sair } = useAuth();
   const confirmar = useConfirmacao();
+  const [modalSenha, setModalSenha] = useState(false);
 
   async function handleSair() {
     const ok = await confirmar({
       titulo: 'Sair da conta?',
-      mensagem: 'Para entrar de novo, você vai precisar de um novo código de acesso enviado ao seu e-mail.',
+      mensagem: 'Para entrar de novo, use seu e-mail e senha.',
       rotuloConfirmar: 'Sair',
     });
     if (ok) sair();
@@ -48,6 +52,7 @@ export function AlunoLayout() {
           <div className="w-8 h-8 rounded-full bg-blue border-2 border-ink flex items-center justify-center font-title font-extrabold text-xs text-ink shadow-brutal-sm">
             {iniciais}
           </div>
+          <BotaoSenha aoClicar={() => setModalSenha(true)} />
           <button
             onClick={handleSair}
             title="Sair da conta"
@@ -106,21 +111,27 @@ export function AlunoLayout() {
               </div>
             </div>
 
-            <button
-              onClick={handleSair}
-              title="Sair da conta"
-              className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <BotaoSenha aoClicar={() => setModalSenha(true)} />
+              <button
+                onClick={handleSair}
+                title="Sair da conta"
+                className="p-1.5 border-2 border-ink rounded-lg bg-paper hover:bg-pink/20 transition-all text-ink cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </aside>
       )}
 
       {/* Conteúdo principal */}
       <main className={`flex-1 w-full max-w-6xl mx-auto p-4 md:p-6 lg:p-8 ${emTentativa ? '' : 'pb-24'} lg:pb-8 overflow-y-auto`}>
+        {!emTentativa && <AvisoSemSenha aoCriarSenha={() => setModalSenha(true)} className="mb-4" />}
         <Outlet />
       </main>
+
+      <ModalSenha aberto={modalSenha} aoFechar={() => setModalSenha(false)} />
 
       {/* Abas inferiores no mobile/app (quando não em tentativa) */}
       {!emTentativa && (
