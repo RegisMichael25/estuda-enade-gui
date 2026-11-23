@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { Questao, Sinalizacao } from '@/api/models';
 import { Card } from '@/components/ui/Card';
@@ -9,11 +9,13 @@ import { Tag, Badge } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { Plus, Flag, EyeOff, Check, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Flag, EyeOff, Check, Pencil, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
 
 export function ProfessorQuestoesPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { toast } = useToast();
   const confirmar = useConfirmacao();
 
@@ -22,7 +24,25 @@ export function ProfessorQuestoesPage() {
   const [carregando, setCarregando] = useState(false);
 
   // Filtro em etapas: a lista só carrega depois de escolher o curso
-  const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(filtroVazio());
+  const cursoIdInicial = searchParams.get('cursoId') || (location.state as any)?.cursoId || '';
+  const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(() => filtroVazio(cursoIdInicial));
+
+  // Sincroniza se searchParams ou location.state mudarem
+  useEffect(() => {
+    const cId = searchParams.get('cursoId') || (location.state as any)?.cursoId || '';
+    if (cId && cId !== filtro.cursoId) {
+      setFiltro((prev) => ({ ...prev, cursoId: cId }));
+    }
+  }, [searchParams, location.state]);
+
+  function handleMudarFiltro(novoFiltro: ValorFiltroQuestoes) {
+    setFiltro(novoFiltro);
+    if (novoFiltro.cursoId) {
+      setSearchParams({ cursoId: novoFiltro.cursoId }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }
 
   // Modal de Sinalizações
   const [modalSinalizacaoAberta, setModalSinalizacaoAberta] = useState(false);
@@ -105,6 +125,23 @@ export function ProfessorQuestoesPage() {
     }
   }
 
+  async function handleExcluirQuestao(q: Questao) {
+    const ok = await confirmar({
+      titulo: 'Excluir rascunho de questão?',
+      mensagem: 'O rascunho desta questão será apagado. Essa ação não pode ser desfeita.',
+      rotuloConfirmar: 'Excluir',
+      perigo: true,
+    });
+    if (!ok) return;
+    try {
+      await api.professor.excluirQuestao(q.id);
+      toast('Questão excluída.');
+      await carregar();
+    } catch (err: any) {
+      toast(err.mensagem || 'Erro ao excluir questão.');
+    }
+  }
+
   async function handleVerSinalizacoes(q: Questao) {
     setQuestaoSinalizadaAtiva(q);
     try {
@@ -154,7 +191,7 @@ export function ProfessorQuestoesPage() {
         <Button
           variant="primary"
           size="md"
-          onClick={() => navigate('/professor/questoes/nova')}
+          onClick={() => navigate('/professor/questoes/nova', { state: { cursoId: filtro.cursoId } })}
         >
           <Plus className="w-4 h-4" />
           Nova questão
@@ -163,10 +200,11 @@ export function ProfessorQuestoesPage() {
 
       <FiltroQuestoes
         valor={filtro}
-        aoMudar={setFiltro}
+        aoMudar={handleMudarFiltro}
         obterAnos={api.professor.obterAnosBanco}
         filtrosDoBanco
         total={total}
+        iniciarRecolhido={false}
       />
 
       {/* Lista de Questões */}
@@ -247,11 +285,10 @@ export function ProfessorQuestoesPage() {
                         return (
                           <div
                             key={alt.id || idx}
-                            className={`p-2.5 rounded-xl border-2 text-xs flex items-start gap-2 ${
-                              eCorreta
+                            className={`p-2.5 rounded-xl border-2 text-xs flex items-start gap-2 ${eCorreta
                                 ? 'bg-green/25 border-green font-bold text-ink'
                                 : 'bg-bg/40 border-ink/20 text-ink/90'
-                            }`}
+                              }`}
                           >
                             <span className="w-5 h-5 rounded border border-ink/40 bg-paper flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
                               {letra}
@@ -319,7 +356,7 @@ export function ProfessorQuestoesPage() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => navigate(`/professor/questoes/${q.id}/editar`)}
+                        onClick={() => navigate(`/professor/questoes/${q.id}/editar`, { state: { cursoId: q.curso.id } })}
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         Editar
@@ -334,6 +371,16 @@ export function ProfessorQuestoesPage() {
                       >
                         <Check className="w-3.5 h-3.5" />
                         Publicar
+                      </Button>
+                    )}
+
+                    {q.minha && q.status === 'RASCUNHO' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleExcluirQuestao(q)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-pink" />
                       </Button>
                     )}
 
