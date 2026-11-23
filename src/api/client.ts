@@ -227,9 +227,9 @@ export const api = {
       return request<Curso[]>('/cursos');
     },
 
-    /** Os temas não pertencem a um curso: a lista é uma só. */
-    obterTemas(): Promise<Tema[]> {
-      return request<Tema[]>('/temas');
+    /** Cada tema pertence a um curso. Sem `cursoId`, vêm os temas de todos os cursos. */
+    obterTemas(cursoId?: string): Promise<Tema[]> {
+      return request<Tema[]>(cursoId ? `/temas?cursoId=${encodeURIComponent(cursoId)}` : '/temas');
     }
   },
 
@@ -341,11 +341,11 @@ export const api = {
       });
     },
 
-    /** Cria o tema. Se já existir um com o mesmo nome, a API devolve o existente. */
-    criarTema(nome: string): Promise<Tema> {
+    /** Cria o tema no curso. Se já existir um com o mesmo nome nesse curso, a API devolve o existente. */
+    criarTema(cursoId: string, nome: string): Promise<Tema> {
       return request<Tema>('/professor/temas', {
         method: 'POST',
-        body: JSON.stringify({ nome })
+        body: JSON.stringify({ nome, cursoId })
       });
     },
 

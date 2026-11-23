@@ -117,7 +117,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Temas, em ordem alfabética */
+        /**
+         * Temas, em ordem alfabética
+         * @description Cada tema pertence a um curso. Com `cursoId`, só os temas desse curso.
+         */
         get: operations["temas"];
         put?: never;
         post?: never;
@@ -153,7 +156,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cria o tema ou devolve o existente com o mesmo nome */
+        /** Cria o tema no curso ou devolve o existente com o mesmo nome nesse curso */
         post: operations["criarTema"];
         delete?: never;
         options?: never;
@@ -924,6 +927,11 @@ export interface components {
         NomeRequest: {
             nome: string;
         };
+        TemaRequest: {
+            nome: string;
+            /** Format: uuid */
+            cursoId: string;
+        };
         TurmaRequest: {
             nome: string;
             /** @description Ex.: 2026.2 */
@@ -1642,7 +1650,9 @@ export interface operations {
     };
     temas: {
         parameters: {
-            query?: never;
+            query?: {
+                cursoId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1704,7 +1714,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NomeRequest"];
+                "application/json": components["schemas"]["TemaRequest"];
             };
         };
         responses: {
