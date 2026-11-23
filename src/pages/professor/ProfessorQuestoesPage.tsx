@@ -9,7 +9,7 @@ import { Tag, Badge } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { Plus, Flag, EyeOff, Check } from 'lucide-react';
+import { Plus, Flag, EyeOff, Check, Pencil } from 'lucide-react';
 
 export function ProfessorQuestoesPage() {
   const navigate = useNavigate();
@@ -225,6 +225,17 @@ export function ProfessorQuestoesPage() {
                       >
                         <Flag className="w-3.5 h-3.5 text-orange" />
                         Ver {q.sinalizacoesAbertas} sinalização(ões)
+                      </Button>
+                    )}
+
+                    {q.minha && q.status === 'RASCUNHO' && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => navigate(`/professor/questoes/${q.id}/editar`)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Editar
                       </Button>
                     )}
 
