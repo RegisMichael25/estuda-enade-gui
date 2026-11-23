@@ -16,7 +16,8 @@ import {
   CheckCircle,
   Trash2,
   Lock,
-  FileCheck
+  FileCheck,
+  Pencil
 } from 'lucide-react';
 
 interface ContextType {
@@ -58,14 +59,16 @@ export function ProfessorAtividadesPage() {
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Modal Nova Atividade
+  // Modal Atividade (Criar ou Editar)
   const [modalAberta, setModalAberta] = useState(false);
+  const [atividadeEmEdicao, setAtividadeEmEdicao] = useState<Atividade | null>(null);
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoAtividade>('SIMULADO');
   const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>(30);
   const [tentativas, setTentativas] = useState<OpcaoTentativas>('1');
   const [questoesBanco, setQuestoesBanco] = useState<Questao[]>([]);
   const [questoesSelecionadas, setQuestoesSelecionadas] = useState<string[]>([]);
+  const [carregandoQuestoes, setCarregandoQuestoes] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
   async function carregarAtividades() {
@@ -86,13 +89,74 @@ export function ProfessorAtividadesPage() {
   }, [turmaSelecionada]);
 
   async function abrirModalCriar() {
+    setAtividadeEmEdicao(null);
+    setTitulo('');
+    setTipo('SIMULADO');
+    setDuracaoMinutos(30);
+    setTentativas('1');
+    setQuestoesSelecionadas([]);
     setModalAberta(true);
+    setCarregandoQuestoes(true);
     try {
       const res = await api.professor.obterQuestoes({ status: 'PUBLICADA', tamanho: 50 });
       setQuestoesBanco(res.itens);
     } catch (err) {
       console.error(err);
+    } finally {
+      setCarregandoQuestoes(false);
     }
+  }
+
+  async function abrirModalEditar(atv: Atividade) {
+    setAtividadeEmEdicao(atv);
+    setTitulo(atv.titulo);
+    setTipo(atv.tipo);
+    setDuracaoMinutos(atv.duracaoMinutos ?? '');
+    setTentativas(atv.maxTentativas === null ? ILIMITADAS : String(atv.maxTentativas));
+    setQuestoesSelecionadas([]);
+    setModalAberta(true);
+    setCarregandoQuestoes(true);
+
+    try {
+      const [detalhe, resQuestoes] = await Promise.all([
+        api.professor.obterAtividade(atv.id),
+        api.professor.obterQuestoes({ status: 'PUBLICADA', tamanho: 50 })
+      ]);
+
+      setTitulo(detalhe.atividade.titulo);
+      setTipo(detalhe.atividade.tipo);
+      setDuracaoMinutos(detalhe.atividade.duracaoMinutos ?? '');
+      setTentativas(
+        detalhe.atividade.maxTentativas === null
+          ? ILIMITADAS
+          : String(detalhe.atividade.maxTentativas)
+      );
+      setQuestoesSelecionadas(detalhe.questoes.map((q) => q.id));
+
+      // Garante que todas as questões da atividade apareçam na lista do banco
+      const idsExistentes = new Set(resQuestoes.itens.map((q) => q.id));
+      const questoesCombinadas = [...resQuestoes.itens];
+      for (const q of detalhe.questoes) {
+        if (!idsExistentes.has(q.id)) {
+          questoesCombinadas.push(q);
+          idsExistentes.add(q.id);
+        }
+      }
+      setQuestoesBanco(questoesCombinadas);
+    } catch (err: any) {
+      console.error('Erro ao carregar detalhes do rascunho:', err);
+      toast(err?.mensagem || 'Erro ao carregar detalhes do rascunho.');
+    } finally {
+      setCarregandoQuestoes(false);
+    }
+  }
+
+  function fecharModal() {
+    if (salvando) return;
+    setModalAberta(false);
+    setAtividadeEmEdicao(null);
+    setTitulo('');
+    setQuestoesSelecionadas([]);
   }
 
   function alternarSelecaoQuestao(qId: string) {
@@ -108,7 +172,7 @@ export function ProfessorAtividadesPage() {
     if (!valida) setTentativas('1');
   }
 
-  async function handleCriarAtividade(publicarImediatamente = false) {
+  async function handleSalvarAtividade(publicarImediatamente = false) {
     if (!turmaSelecionada) return;
     if (!titulo.trim()) {
       toast('Informe o título da atividade.');
@@ -122,7 +186,7 @@ export function ProfessorAtividadesPage() {
     if (
       publicarImediatamente &&
       !(await confirmar({
-        titulo: 'Criar e publicar atividade?',
+        titulo: atividadeEmEdicao ? 'Salvar e publicar atividade?' : 'Criar e publicar atividade?',
         mensagem: `"${titulo.trim()}" fica disponível para os alunos de ${turmaSelecionada.nome} na hora. Depois de publicada, não pode mais ser alterada.`,
         rotuloConfirmar: 'Publicar',
       }))
@@ -132,27 +196,41 @@ export function ProfessorAtividadesPage() {
 
     setSalvando(true);
     try {
-      const nova = await api.professor.criarAtividadeTurma(turmaSelecionada.id, {
+      const payload = {
         titulo: titulo.trim(),
         tipo,
         duracaoMinutos: duracaoMinutos !== '' ? Number(duracaoMinutos) : null,
         maxTentativas: tentativas === ILIMITADAS ? null : Number(tentativas),
         questaoIds: questoesSelecionadas
-      });
+      };
 
-      if (publicarImediatamente) {
-        await api.professor.publicarAtividade(nova.id);
-        toast('Atividade criada e publicada para os alunos!');
+      if (atividadeEmEdicao) {
+        await api.professor.atualizarAtividade(atividadeEmEdicao.id, payload);
+
+        if (publicarImediatamente) {
+          await api.professor.publicarAtividade(atividadeEmEdicao.id);
+          toast('Atividade salva e publicada para os alunos!');
+        } else {
+          toast('Rascunho atualizado com sucesso!');
+        }
       } else {
-        toast('Atividade salva como rascunho!');
+        const nova = await api.professor.criarAtividadeTurma(turmaSelecionada.id, payload);
+
+        if (publicarImediatamente) {
+          await api.professor.publicarAtividade(nova.id);
+          toast('Atividade criada e publicada para os alunos!');
+        } else {
+          toast('Atividade salva como rascunho!');
+        }
       }
 
-      setModalAberta(false);
-      setTitulo('');
-      setQuestoesSelecionadas([]);
+      fecharModal();
       await carregarAtividades();
     } catch (err: any) {
-      toast(err.mensagem || 'Erro ao criar atividade.');
+      toast(
+        err?.mensagem ||
+          (atividadeEmEdicao ? 'Erro ao atualizar rascunho.' : 'Erro ao criar atividade.')
+      );
     } finally {
       setSalvando(false);
     }
@@ -297,6 +375,17 @@ export function ProfessorAtividadesPage() {
 
                 <div className="flex items-center gap-2">
                   {atv.status === 'RASCUNHO' && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => abrirModalEditar(atv)}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Editar
+                    </Button>
+                  )}
+
+                  {atv.status === 'RASCUNHO' && (
                     <Button variant="green" size="sm" onClick={() => handlePublicar(atv)}>
                       <CheckCircle className="w-3.5 h-3.5" />
                       Publicar
@@ -322,11 +411,11 @@ export function ProfessorAtividadesPage() {
         )}
       </div>
 
-      {/* Modal Nova Atividade */}
+      {/* Modal Nova / Editar Atividade */}
       <Modal
         aberto={modalAberta}
-        aoFechar={() => setModalAberta(false)}
-        titulo="Criar Nova Atividade"
+        aoFechar={fecharModal}
+        titulo={atividadeEmEdicao ? 'Editar Rascunho' : 'Criar Nova Atividade'}
         className="max-w-2xl"
       >
         <div className="flex flex-col gap-4">
@@ -384,7 +473,11 @@ export function ProfessorAtividadesPage() {
             </div>
 
             <div className="max-h-56 overflow-y-auto border-2 border-ink rounded-xl bg-bg p-2 flex flex-col gap-2">
-              {questoesBanco.length === 0 ? (
+              {carregandoQuestoes ? (
+                <p className="text-xs text-muted text-center p-4">
+                  Carregando questões do banco...
+                </p>
+              ) : questoesBanco.length === 0 ? (
                 <p className="text-xs text-muted text-center p-4">
                   Nenhuma questão publicada disponível no banco para selecionar.
                 </p>
@@ -427,22 +520,24 @@ export function ProfessorAtividadesPage() {
           </div>
 
           <div className="flex justify-end gap-2 mt-2 pt-3 border-t-2 border-ink/20">
-            <Button variant="ghost" onClick={() => setModalAberta(false)}>
+            <Button variant="ghost" disabled={salvando} onClick={fecharModal}>
               Cancelar
             </Button>
             <Button
               variant="secondary"
               carregando={salvando}
-              onClick={() => handleCriarAtividade(false)}
+              disabled={carregandoQuestoes}
+              onClick={() => handleSalvarAtividade(false)}
             >
-              Salvar rascunho
+              {atividadeEmEdicao ? 'Salvar alterações' : 'Salvar rascunho'}
             </Button>
             <Button
               variant="primary"
               carregando={salvando}
-              onClick={() => handleCriarAtividade(true)}
+              disabled={carregandoQuestoes}
+              onClick={() => handleSalvarAtividade(true)}
             >
-              Criar e publicar
+              {atividadeEmEdicao ? 'Salvar e publicar' : 'Criar e publicar'}
             </Button>
           </div>
         </div>
