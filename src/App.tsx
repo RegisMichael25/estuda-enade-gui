@@ -9,7 +9,11 @@ import { AlunoLayout } from '@/components/layout/AlunoLayout';
 import { ProfessorLayout } from '@/components/layout/ProfessorLayout';
 
 // Auth Pages
+import { RotaPublica } from '@/components/layout/RotaPublica';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { CadastroPage } from '@/pages/auth/CadastroPage';
+import { CadastroGooglePage } from '@/pages/auth/CadastroGooglePage';
+import { EsqueciSenhaPage } from '@/pages/auth/EsqueciSenhaPage';
 import { CadastroPendentePage } from '@/pages/auth/CadastroPendentePage';
 
 // Aluno Pages
@@ -67,8 +71,14 @@ export function App() {
                 {/* Rota Raiz com Redirecionamento por Papel */}
                 <Route path="/" element={<RootRedirect />} />
 
-                {/* Autenticação Pública */}
-                <Route path="/login" element={<LoginPage />} />
+                {/* Autenticação pública: quem já tem sessão vai para a própria área */}
+                <Route element={<RotaPublica />}>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/cadastro" element={<CadastroPage />} />
+                  {/* Login com Google adiado: sem VITE_GOOGLE_CLIENT_ID, volta para /cadastro */}
+                  <Route path="/cadastro/google" element={<CadastroGooglePage />} />
+                  <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
+                </Route>
                 <Route path="/professor/pendente" element={<CadastroPendentePage />} />
 
                 {/* Rotas Protegidas do Aluno */}

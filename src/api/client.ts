@@ -27,7 +27,12 @@ import type {
   ProfessorPendente,
   Curso,
   Tema,
-  Erro
+  Erro,
+  CadastrarRequest,
+  EntrarRequest,
+  GoogleCadastrarRequest,
+  RedefinirSenhaRequest,
+  TrocarSenhaRequest
 } from './models';
 
 const API_BASE = '/api/v1';
@@ -168,22 +173,64 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // ===================== AUTH =====================
   auth: {
-    solicitarCodigo(email: string): Promise<void> {
-      return request<void>('/auth/codigo', {
+    cadastrar(payload: CadastrarRequest): Promise<Sessao> {
+      return request<Sessao>('/auth/cadastrar', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    entrar(payload: EntrarRequest): Promise<Sessao> {
+      return request<Sessao>('/auth/entrar', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    /** Login com Google (adiado: só é chamado com VITE_GOOGLE_CLIENT_ID definido). */
+    entrarComGoogle(idToken: string): Promise<Sessao> {
+      return request<Sessao>('/auth/google/entrar', {
+        method: 'POST',
+        body: JSON.stringify({ idToken })
+      });
+    },
+
+    /** Cadastro com Google (adiado: só é chamado com VITE_GOOGLE_CLIENT_ID definido). */
+    cadastrarComGoogle(payload: GoogleCadastrarRequest): Promise<Sessao> {
+      return request<Sessao>('/auth/google/cadastrar', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    /** Responde igual com ou sem conta para o e-mail ("se houver conta, enviamos"). */
+    solicitarCodigoSenha(email: string): Promise<void> {
+      return request<void>('/auth/senha/codigo', {
         method: 'POST',
         body: JSON.stringify({ email })
       });
     },
 
-    entrar(payload: {
-      email: string;
-      codigo: string;
-      nome?: string;
-      papel?: 'ALUNO' | 'PROFESSOR';
-      codigoConvite?: string;
-    }): Promise<Sessao> {
-      return request<Sessao>('/auth/entrar', {
+    /** Encerra todas as sessões da conta no servidor; depois, é preciso entrar de novo. */
+    redefinirSenha(payload: RedefinirSenhaRequest): Promise<void> {
+      return request<void>('/auth/senha/redefinir', {
         method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    /** Envia ao e-mail da conta logada o código para trocar a senha. */
+    solicitarCodigoTrocaSenha(): Promise<void> {
+      return request<void>('/eu/senha/codigo', { method: 'POST' });
+    },
+
+    /**
+     * Cria ou troca a senha da conta logada com o código recebido por e-mail. Devolve uma sessão nova (as outras
+     * são encerradas). Código errado vem como 422 CODIGO_INVALIDO, e não 401, para não disparar a renovação automática.
+     */
+    trocarSenha(payload: TrocarSenhaRequest): Promise<Sessao> {
+      return request<Sessao>('/eu/senha', {
+        method: 'PUT',
         body: JSON.stringify(payload)
       });
     },

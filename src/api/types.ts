@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/v1/auth/codigo": {
+    "/api/v1/auth/cadastrar": {
         parameters: {
             query?: never;
             header?: never;
@@ -13,8 +13,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Envia o código de acesso para o e-mail */
-        post: operations["solicitarCodigo"];
+        /**
+         * Cria a conta com e-mail e senha e já abre a sessão
+         * @description Aluno entra sempre aprovado (`codigoConvite` é ignorado). Professor entra aprovado com `codigoConvite` válido; sem convite fica pendente, mesmo com e-mail de domínio institucional, até comprovar o e-mail (login com Google ou redefinição de senha) ou ser aprovado por outro professor.
+         */
+        post: operations["cadastrar"];
         delete?: never;
         options?: never;
         head?: never;
@@ -30,11 +33,85 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Entra com e-mail e código (cria a conta no primeiro acesso)
-         * @description No primeiro acesso de um e-mail responde `422 CADASTRO_NECESSARIO` sem gastar o código; reenvie com `nome` e `papel`. Professor entra aprovado com `codigoConvite` válido ou e-mail de domínio institucional; nos demais casos fica pendente.
-         */
+        /** Entra com e-mail e senha */
         post: operations["entrar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google/entrar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Entra com a conta Google
+         * @description Valida o ID token do Google. Se a conta com o mesmo e-mail existir e ainda não estiver vinculada, vincula e entra, mantendo a senha da conta; o e-mail dela passa a ser comprovado. Professor pendente com e-mail de domínio institucional é aprovado nesse momento.
+         */
+        post: operations["entrarComGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google/cadastrar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cria a conta a partir da conta Google
+         * @description O e-mail vem do token e já entra comprovado. O nome é o enviado no corpo (o cliente preenche com o do Google e o usuário pode alterar). A senha é obrigatória, para a conta também entrar com e-mail e senha.
+         */
+        post: operations["cadastrarComGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/senha/codigo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Envia por e-mail o código para redefinir a senha */
+        post: operations["solicitarCodigoSenha"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/senha/redefinir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Define uma nova senha com o código recebido
+         * @description O código comprova o e-mail: professor pendente com e-mail de domínio institucional é aprovado.
+         */
+        post: operations["redefinirSenha"];
         delete?: never;
         options?: never;
         head?: never;
@@ -87,6 +164,43 @@ export interface paths {
         /** Altera o nome da conta logada */
         put: operations["atualizarNome"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/eu/senha": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cria ou troca a senha da conta logada, com o código enviado por e-mail
+         * @description Peça o código antes em `POST /eu/senha/codigo`. O código comprova o e-mail: professor pendente com e-mail de domínio institucional é aprovado. Código errado responde 422 (não 401, que o cliente trataria como sessão expirada); após 5 erros o código é queimado e é preciso pedir outro.
+         */
+        put: operations["trocarSenha"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/eu/senha/codigo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Envia ao e-mail da conta logada o código para trocar a senha */
+        post: operations["solicitarCodigoTrocaSenha"];
         delete?: never;
         options?: never;
         head?: never;
@@ -213,6 +327,23 @@ export interface paths {
         put?: never;
         /** Gera um convite de professor de uso único */
         post: operations["criarConvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/professor/convites/{conviteId}/invalidar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invalida manualmente um convite ativo criado por mim */
+        post: operations["invalidarConvite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1017,25 +1148,70 @@ export interface components {
          * @enum {string}
          */
         Encerramento: "ENVIO" | "TEMPO";
-        SolicitarCodigoRequest: {
-            /**
-             * Format: email
-             * @description E-mail que vai receber o código de acesso.
-             */
+        CadastrarRequest: {
+            nome: string;
+            /** Format: email */
             email: string;
+            /**
+             * Format: password
+             * @description De 8 a 72 caracteres (até 72 bytes em UTF-8), com pelo menos uma letra e um número.
+             */
+            senha: string;
+            papel: components["schemas"]["Papel"];
+            /** @description Opcional, só para professor: convite recebido de outro professor. Ignorado para aluno. */
+            codigoConvite?: string | null;
         };
-        /** @description Login pelo código de acesso. `nome` e `papel` só são necessários no primeiro acesso. */
         EntrarRequest: {
             /** Format: email */
             email: string;
-            /** @description Código de acesso recebido. */
-            codigo: string;
-            /** @description Só no primeiro acesso (cadastro). */
-            nome?: string | null;
-            /** @description Só no primeiro acesso (cadastro). */
-            papel?: components["schemas"]["Papel"] | null;
-            /** @description Opcional, só no cadastro de professor: convite recebido de outro professor. */
+            /** Format: password */
+            senha: string;
+        };
+        GoogleEntrarRequest: {
+            /** @description ID token (credential) devolvido pelo Google Identity Services. */
+            idToken: string;
+        };
+        /** @description Não há campo de e-mail: ele vem sempre do token. */
+        GoogleCadastrarRequest: {
+            /** @description ID token (credential) devolvido pelo Google Identity Services. */
+            idToken: string;
+            /** @description Nome da conta. O cliente preenche com o do Google e o usuário pode alterar. */
+            nome: string;
+            /**
+             * Format: password
+             * @description De 8 a 72 caracteres (até 72 bytes em UTF-8), com pelo menos uma letra e um número.
+             */
+            senha: string;
+            papel: components["schemas"]["Papel"];
+            /** @description Opcional, só para professor: convite recebido de outro professor. Ignorado para aluno. */
             codigoConvite?: string | null;
+        };
+        SolicitarCodigoSenhaRequest: {
+            /**
+             * Format: email
+             * @description E-mail da conta que vai receber o código.
+             */
+            email: string;
+        };
+        RedefinirSenhaRequest: {
+            /** Format: email */
+            email: string;
+            /** @description Código recebido por e-mail. */
+            codigo: string;
+            /**
+             * Format: password
+             * @description De 8 a 72 caracteres (até 72 bytes em UTF-8), com pelo menos uma letra e um número.
+             */
+            novaSenha: string;
+        };
+        TrocarSenhaRequest: {
+            /** @description Código recebido por e-mail (`POST /eu/senha/codigo`). */
+            codigo: string;
+            /**
+             * Format: password
+             * @description De 8 a 72 caracteres (até 72 bytes em UTF-8), com pelo menos uma letra e um número.
+             */
+            novaSenha: string;
         };
         RefreshRequest: {
             refreshToken: string;
@@ -1131,6 +1307,10 @@ export interface components {
             papel: components["schemas"]["Papel"];
             /** @description Falso só para professor que ainda aguarda aprovação. */
             aprovado: boolean;
+            /** @description Se a conta tem senha (falso: só entra com Google ou depois de redefinir). */
+            temSenha: boolean;
+            /** @description Se a conta está vinculada a uma conta Google. */
+            googleVinculado: boolean;
         };
         SessaoResponse: {
             accessToken: string;
@@ -1171,6 +1351,10 @@ export interface components {
             usadoPor: string | null;
             /** Format: date-time */
             usadoEm: string | null;
+            /** @description Se o convite foi invalidado manualmente por quem o criou. */
+            invalidado: boolean;
+            /** Format: date-time */
+            invalidadoEm: string | null;
         };
         /** @description Turma vista pelo professor. */
         TurmaResponse: {
@@ -1588,7 +1772,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    solicitarCodigo: {
+    cadastrar: {
         parameters: {
             query?: never;
             header?: never;
@@ -1597,19 +1781,30 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SolicitarCodigoRequest"];
+                "application/json": components["schemas"]["CadastrarRequest"];
             };
         };
         responses: {
-            /** @description Sem conteúdo. */
-            204: {
+            /** @description Conta criada. */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SessaoResponse"];
+                };
             };
-            /** @description Muitos códigos solicitados para o mesmo e-mail. */
-            429: {
+            /** @description `EMAIL_EM_USO`: já existe conta com este e-mail. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `SENHA_FRACA` ou `CONVITE_INVALIDO`. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1642,7 +1837,7 @@ export interface operations {
                     "application/json": components["schemas"]["SessaoResponse"];
                 };
             };
-            /** @description Código inválido ou sessão expirada. */
+            /** @description `CREDENCIAIS_INVALIDAS`: e-mail ou senha incorretos (também para conta sem senha). */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -1651,7 +1846,193 @@ export interface operations {
                     "application/json": components["schemas"]["ErroResponse"];
                 };
             };
-            /** @description `CADASTRO_NECESSARIO` ou `CONVITE_INVALIDO`. */
+            /** @description `MUITAS_TENTATIVAS`: conta bloqueada por alguns minutos depois de várias senhas erradas. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    entrarComGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleEntrarRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessaoResponse"];
+                };
+            };
+            /** @description `GOOGLE_TOKEN_INVALIDO`: token inválido, expirado, de outro aplicativo ou com e-mail não verificado. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `CONTA_NAO_ENCONTRADA`: não há conta para este Google; use `/auth/google/cadastrar` com o mesmo token. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `GOOGLE_DESABILITADO`: login com Google não configurado ou Google indisponível. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    cadastrarComGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleCadastrarRequest"];
+            };
+        };
+        responses: {
+            /** @description Conta criada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessaoResponse"];
+                };
+            };
+            /** @description `GOOGLE_TOKEN_INVALIDO`. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `EMAIL_EM_USO`: já existe conta com o e-mail do Google. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `SENHA_FRACA` ou `CONVITE_INVALIDO`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `GOOGLE_DESABILITADO`. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    solicitarCodigoSenha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolicitarCodigoSenhaRequest"];
+            };
+        };
+        responses: {
+            /** @description Sem conteúdo. Responde igual quando o e-mail não tem conta (nesse caso nada é enviado). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `MUITAS_SOLICITACOES`: muitos códigos pedidos para o mesmo e-mail. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    redefinirSenha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedefinirSenhaRequest"];
+            };
+        };
+        responses: {
+            /** @description Senha alterada. Todas as sessões da conta são encerradas; entre de novo com a nova senha. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `CODIGO_INVALIDO`: código inválido ou expirado. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `SENHA_FRACA`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1761,6 +2142,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsuarioResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    trocarSenha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrocarSenhaRequest"];
+            };
+        };
+        responses: {
+            /** @description Senha alterada. As outras sessões são encerradas; use a sessão devolvida. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessaoResponse"];
+                };
+            };
+            /** @description `CODIGO_INVALIDO` (código errado ou expirado) ou `SENHA_FRACA`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    solicitarCodigoTrocaSenha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Código enviado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `MUITAS_SOLICITACOES`: muitos códigos pedidos para o mesmo e-mail. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
                 };
             };
             default: components["responses"]["Erro"];
@@ -1999,6 +2442,56 @@ export interface operations {
             };
             /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    invalidarConvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conviteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConviteResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description `CONVITE_NAO_DISPONIVEL`: o convite já foi utilizado, expirou ou foi invalidado. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
