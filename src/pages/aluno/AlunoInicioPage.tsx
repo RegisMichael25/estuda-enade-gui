@@ -94,11 +94,16 @@ export function AlunoInicioPage() {
                 </div>
               </div>
 
-              {!atv.podeIniciar ? (
-                <Tag color="green">Concluído</Tag>
-              ) : (
+              <div className="flex items-center gap-2 flex-none">
+                {atv.status === 'ENCERRADA' ? (
+                  <Tag color="paper">Encerrada</Tag>
+                ) : atv.tentativaAbertaId ? (
+                  <Tag color="yellow">Em andamento</Tag>
+                ) : !atv.podeIniciar ? (
+                  <Tag color="green">Concluído</Tag>
+                ) : null}
                 <ArrowRight className="w-4 h-4 text-muted flex-none" />
-              )}
+              </div>
             </Card>
           ))
         )}
