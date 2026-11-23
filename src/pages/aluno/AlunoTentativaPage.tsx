@@ -234,7 +234,7 @@ export function AlunoTentativaPage() {
         </div>
       )}
 
-      {/* Controles de Navegação Anterior / Próxima */}
+      {/* Controles de Navegação Anterior / Próxima ou Enviar respostas */}
       <div className="flex gap-2 mt-2">
         <Button
           variant="secondary"
@@ -247,32 +247,29 @@ export function AlunoTentativaPage() {
           Anterior
         </Button>
 
-        <Button
-          variant="secondary"
-          size="md"
-          disabled={indiceAtual === totalQuestoes - 1}
-          onClick={() => setIndiceAtual((i) => Math.min(totalQuestoes - 1, i + 1))}
-          className="flex-1"
-        >
-          Próxima
-          <ArrowRight className="w-4 h-4" />
-        </Button>
+        {indiceAtual === totalQuestoes - 1 ? (
+          <Button
+            variant="primary"
+            size="md"
+            carregando={enviando}
+            onClick={handlePedirEnvio}
+            className="flex-1"
+          >
+            <Send className="w-4 h-4" />
+            Enviar respostas ({totalMarcadas}/{totalQuestoes})
+          </Button>
+        ) : (
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => setIndiceAtual((i) => Math.min(totalQuestoes - 1, i + 1))}
+            className="flex-1"
+          >
+            Próxima
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        )}
       </div>
-
-      {/* Botão de Envio de Respostas */}
-      <Button
-        variant="primary"
-        size="lg"
-        fullWidth
-        carregando={enviando}
-        onClick={handlePedirEnvio}
-        className="mt-2"
-      >
-        <Send className="w-4 h-4" />
-        Enviar respostas ({totalMarcadas}/{totalQuestoes})
-      </Button>
-
     </div>
   );
 }
-
