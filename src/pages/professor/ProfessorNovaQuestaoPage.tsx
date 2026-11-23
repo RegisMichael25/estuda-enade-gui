@@ -12,6 +12,10 @@ import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { adicionarOrdenado } from '@/lib/utils';
 import { ArrowLeft, Check, Save } from 'lucide-react';
 
+/** Primeira edição do ENADE no formato atual; o teto aceita a prova do ano seguinte. */
+const ANO_MINIMO = 2004;
+const ANO_MAXIMO = new Date().getFullYear() + 1;
+
 export function ProfessorNovaQuestaoPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -21,7 +25,8 @@ export function ProfessorNovaQuestaoPage() {
   const [cursoId, setCursoId] = useState<string>('');
   const [temas, setTemas] = useState<Tema[]>([]);
   const [temaId, setTemaId] = useState<string>('');
-  const [ano, setAno] = useState<number>(2024);
+  const [carregandoTemas, setCarregandoTemas] = useState(false);
+  const [ano, setAno] = useState<string>('');
 
   const [enunciado, setEnunciado] = useState('');
   const [explicacao, setExplicacao] = useState('');
@@ -32,22 +37,29 @@ export function ProfessorNovaQuestaoPage() {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    async function carregarCatalogo() {
-      try {
-        const [listaCursos, listaTemas] = await Promise.all([
-          api.catalogo.obterCursos(),
-          api.catalogo.obterTemas()
-        ]);
-        setCursos(listaCursos);
-        setTemas(listaTemas);
-        if (listaCursos.length > 0) setCursoId(listaCursos[0].id);
-        if (listaTemas.length > 0) setTemaId(listaTemas[0].id);
-      } catch (err) {
-        console.error('Erro ao carregar catálogo:', err);
-      }
-    }
-    carregarCatalogo();
+    api.catalogo
+      .obterCursos()
+      .then(setCursos)
+      .catch((err) => console.error('Erro ao carregar cursos:', err));
   }, []);
+
+  // Os temas pertencem ao curso: trocar o curso recarrega a lista e limpa o tema escolhido
+  useEffect(() => {
+    setTemaId('');
+    setTemas([]);
+    if (!cursoId) return;
+
+    let ativo = true;
+    setCarregandoTemas(true);
+    api.catalogo
+      .obterTemas(cursoId)
+      .then((lista) => ativo && setTemas(lista))
+      .catch((err) => console.error('Erro ao carregar temas:', err))
+      .finally(() => ativo && setCarregandoTemas(false));
+    return () => {
+      ativo = false;
+    };
+  }, [cursoId]);
 
   function handleCursoCriado(curso: Curso) {
     setCursos((lista) => adicionarOrdenado(lista, curso));
@@ -78,6 +90,11 @@ export function ProfessorNovaQuestaoPage() {
       toast('Selecione o curso e o tema da questão.');
       return;
     }
+    const anoNumero = Number(ano);
+    if (!Number.isInteger(anoNumero) || anoNumero < ANO_MINIMO || anoNumero > ANO_MAXIMO) {
+      toast(`Informe o ano do exame entre ${ANO_MINIMO} e ${ANO_MAXIMO}.`);
+      return;
+    }
 
     if (
       publicarApos &&
@@ -97,7 +114,7 @@ export function ProfessorNovaQuestaoPage() {
         explicacao: explicacao.trim() || undefined,
         cursoId,
         temaId,
-        ano: Number(ano),
+        ano: anoNumero,
         alternativas: alternativas.map((texto, idx) => ({
           texto: texto.trim(),
           correta: idx === indiceCorreta,
@@ -228,14 +245,15 @@ export function ProfessorNovaQuestaoPage() {
           </Card>
         </div>
 
-        {/* Coluna Lateral: Metadados Pedagógicos & Ações */}
+        {/* Coluna Lateral: Classificação & Ações */}
         <Card color="yellow" className="p-5 flex flex-col gap-4">
           <h3 className="font-bold text-base font-title text-ink">
-            Metadados ENADE
+            Classificação da questão
           </h3>
 
           <Combobox
             label="Curso"
+            placeholder="Selecione o curso"
             opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
             valor={cursoId}
             aoMudar={setCursoId}
@@ -247,25 +265,42 @@ export function ProfessorNovaQuestaoPage() {
             onCriado={handleCursoCriado}
           />
 
-          <Combobox
-            label="Ano do Exame"
-            opcoes={[2024, 2021, 2017, 2014].map((a) => ({ valor: a, rotulo: String(a) }))}
-            valor={ano}
-            aoMudar={setAno}
-          />
+          {cursoId ? (
+            <>
+              <Input
+                label="Ano do Exame"
+                type="number"
+                inputMode="numeric"
+                min={ANO_MINIMO}
+                max={ANO_MAXIMO}
+                step={1}
+                placeholder={`Ex: ${ANO_MAXIMO - 1}`}
+                value={ano}
+                onChange={(e) => setAno(e.target.value)}
+              />
 
-          <Combobox
-            label="Tema / Matéria"
-            opcoes={temas.map((t) => ({ valor: t.id, rotulo: t.nome }))}
-            valor={temaId}
-            aoMudar={setTemaId}
-          />
-          <NovoItemCatalogo
-            rotulo="Novo tema"
-            placeholder="Nome do tema"
-            criar={api.professor.criarTema}
-            onCriado={handleTemaCriado}
-          />
+              <Combobox
+                label="Tema / Matéria"
+                placeholder={carregandoTemas ? 'Carregando temas...' : 'Selecione o tema'}
+                opcoes={temas.map((t) => ({ valor: t.id, rotulo: t.nome }))}
+                valor={temaId}
+                aoMudar={setTemaId}
+                disabled={carregandoTemas}
+                mensagemVazia="Nenhum tema neste curso. Crie um abaixo."
+              />
+              <NovoItemCatalogo
+                key={cursoId}
+                rotulo="Novo tema"
+                placeholder="Nome do tema"
+                criar={(nome) => api.professor.criarTema(cursoId, nome)}
+                onCriado={handleTemaCriado}
+              />
+            </>
+          ) : (
+            <p className="text-xs text-muted">
+              Escolha o curso para informar o ano e o tema.
+            </p>
+          )}
 
           <div className="flex flex-col gap-2 mt-2 pt-2 border-t-2 border-ink/20">
             <Button
