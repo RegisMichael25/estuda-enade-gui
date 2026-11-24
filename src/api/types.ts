@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Cria a conta com e-mail e senha e já abre a sessão
-         * @description Aluno entra sempre aprovado (`codigoConvite` é ignorado). Professor entra aprovado com `codigoConvite` válido; sem convite fica pendente, mesmo com e-mail de domínio institucional, até comprovar o e-mail (login com Google ou redefinição de senha) ou ser aprovado por outro professor.
+         * @description Aluno entra sempre aprovado (`codigoConvite` é ignorado). Professor entra aprovado só com `codigoConvite` válido; sem convite fica pendente até outro professor aprovado liberar.
          */
         post: operations["cadastrar"];
         delete?: never;
@@ -52,7 +52,7 @@ export interface paths {
         put?: never;
         /**
          * Entra com a conta Google
-         * @description Valida o ID token do Google. Se a conta com o mesmo e-mail existir e ainda não estiver vinculada, vincula e entra, mantendo a senha da conta; o e-mail dela passa a ser comprovado. Professor pendente com e-mail de domínio institucional é aprovado nesse momento.
+         * @description Valida o ID token do Google. Se a conta com o mesmo e-mail existir e ainda não estiver vinculada, vincula e entra, mantendo a senha da conta; o e-mail dela passa a ser comprovado.
          */
         post: operations["entrarComGoogle"];
         delete?: never;
@@ -107,10 +107,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Define uma nova senha com o código recebido
-         * @description O código comprova o e-mail: professor pendente com e-mail de domínio institucional é aprovado.
-         */
+        /** Define uma nova senha com o código recebido */
         post: operations["redefinirSenha"];
         delete?: never;
         options?: never;
@@ -180,7 +177,7 @@ export interface paths {
         get?: never;
         /**
          * Cria ou troca a senha da conta logada, com o código enviado por e-mail
-         * @description Peça o código antes em `POST /eu/senha/codigo`. O código comprova o e-mail: professor pendente com e-mail de domínio institucional é aprovado. Código errado responde 422 (não 401, que o cliente trataria como sessão expirada); após 5 erros o código é queimado e é preciso pedir outro.
+         * @description Peça o código antes em `POST /eu/senha/codigo`. Código errado responde 422 (não 401, que o cliente trataria como sessão expirada); após 5 erros o código é queimado e é preciso pedir outro.
          */
         put: operations["trocarSenha"];
         post?: never;
@@ -236,6 +233,26 @@ export interface paths {
          * @description Cada tema pertence a um curso. Com `cursoId`, só os temas desse curso.
          */
         get: operations["temas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/unidades-tempo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unidades de tempo da duração de uma atividade
+         * @description Linhas fixas: Minutos (`min`) e Horas (`h`), nesta ordem.
+         */
+        get: operations["unidadesTempo"];
         put?: never;
         post?: never;
         delete?: never;
@@ -532,7 +549,7 @@ export interface paths {
         put?: never;
         /**
          * Cria uma atividade em rascunho
-         * @description Turma arquivada responde `422 TURMA_ARQUIVADA`.
+         * @description Turma arquivada responde `422 TURMA_ARQUIVADA`. Duração: `422 UNIDADE_TEMPO_OBRIGATORIA`, `422 UNIDADE_TEMPO_INVALIDA` ou `422 DURACAO_INVALIDA`.
          */
         post: operations["criarAtividade"];
         delete?: never;
@@ -591,7 +608,8 @@ export interface paths {
         /** Edita a questão (só o autor) */
         put: operations["atualizarQuestao"];
         post?: never;
-        delete?: never;
+        /** Exclui a questão (só rascunho) */
+        delete: operations["excluirQuestao"];
         options?: never;
         head?: never;
         patch?: never;
@@ -675,7 +693,10 @@ export interface paths {
         };
         /** Atividade com as questões */
         get: operations["detalharAtividade"];
-        /** Edita a atividade (só rascunho) */
+        /**
+         * Edita a atividade (só rascunho)
+         * @description Duração: `422 UNIDADE_TEMPO_OBRIGATORIA`, `422 UNIDADE_TEMPO_INVALIDA` ou `422 DURACAO_INVALIDA`.
+         */
         put: operations["atualizarAtividade"];
         post?: never;
         /** Exclui a atividade (só rascunho) */
@@ -1273,9 +1294,14 @@ export interface components {
             tipo: components["schemas"]["TipoAtividade"];
             /**
              * Format: int32
-             * @description Nulo = sem tempo.
+             * @description Valor inteiro na unidade de `unidadeTempoId`. Nulo = sem tempo. Convertida, não pode passar de 600 minutos (10 horas): `422 DURACAO_INVALIDA`.
              */
-            duracaoMinutos?: number | null;
+            duracao?: number | null;
+            /**
+             * Format: uuid
+             * @description Unidade da `duracao` (veja `GET /unidades-tempo`). Obrigatória quando há `duracao` (`422 UNIDADE_TEMPO_OBRIGATORIA`); ignorada sem ela. Id inexistente: `422 UNIDADE_TEMPO_INVALIDA`.
+             */
+            unidadeTempoId?: string | null;
             /**
              * Format: int32
              * @description LISTA: de 1 a 5, ou nulo para ilimitadas. SIMULADO: 1 ou 2, nunca nulo. Fora disso responde `422 TENTATIVAS_INVALIDAS`.
@@ -1298,6 +1324,15 @@ export interface components {
             /** Format: uuid */
             id: string;
             nome: string;
+        };
+        /** @description Unidade da duração de uma atividade (minutos ou horas). */
+        UnidadeTempoResponse: {
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            /** @description Fixo e único: `min` (minutos) ou `h` (horas). */
+            codigo: string;
+            descricao: string | null;
         };
         UsuarioResponse: {
             /** Format: uuid */
@@ -1495,8 +1530,17 @@ export interface components {
             turmaId: string;
             titulo: string;
             tipo: components["schemas"]["TipoAtividade"];
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Duração convertida para minutos. Nulo = sem tempo.
+             */
             duracaoMinutos: number | null;
+            /**
+             * Format: int32
+             * @description Valor digitado pelo professor, na unidade de `unidadeTempo`.
+             */
+            duracao: number | null;
+            unidadeTempo: components["schemas"]["UnidadeTempoResponse"] | null;
             /** Format: int32 */
             maxTentativas: number | null;
             status: components["schemas"]["StatusAtividade"];
@@ -1519,8 +1563,17 @@ export interface components {
             turma: components["schemas"]["ItemResponse"];
             /** Format: int32 */
             totalQuestoes: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Duração convertida para minutos. Nulo = sem tempo.
+             */
             duracaoMinutos: number | null;
+            /**
+             * Format: int32
+             * @description Valor digitado pelo professor, na unidade de `unidadeTempo`.
+             */
+            duracao: number | null;
+            unidadeTempo: components["schemas"]["UnidadeTempoResponse"] | null;
             /** Format: int32 */
             maxTentativas: number | null;
             status: components["schemas"]["StatusAtividade"];
@@ -1629,8 +1682,17 @@ export interface components {
             status: string;
             /** Format: int32 */
             totalQuestoes: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Duração convertida para minutos. Nulo = sem tempo.
+             */
             duracaoMinutos: number | null;
+            /**
+             * Format: int32
+             * @description Valor digitado pelo professor, na unidade de `unidadeTempo`.
+             */
+            duracao: number | null;
+            unidadeTempo: components["schemas"]["UnidadeTempoResponse"] | null;
             /** Format: int64 */
             concluiram: number;
         };
@@ -1706,8 +1768,17 @@ export interface components {
             status: string;
             /** Format: int32 */
             totalQuestoes: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Duração convertida para minutos. Nulo = sem tempo.
+             */
             duracaoMinutos: number | null;
+            /**
+             * Format: int32
+             * @description Valor digitado pelo professor, na unidade de `unidadeTempo`.
+             */
+            duracao: number | null;
+            unidadeTempo: components["schemas"]["UnidadeTempoResponse"] | null;
             /** Format: int64 */
             concluiram: number;
             turma: components["schemas"]["ItemResponse"];
@@ -2248,6 +2319,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemResponse"][];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    unidadesTempo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnidadeTempoResponse"][];
                 };
             };
             default: components["responses"]["Erro"];
@@ -3220,6 +3312,54 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["QuestaoResponse"];
                 };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    excluirQuestao: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questaoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sem conteúdo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
             403: {

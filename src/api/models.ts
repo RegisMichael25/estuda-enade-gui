@@ -12,9 +12,11 @@ export type EntrarRequest = Schemas['EntrarRequest'];
 export type GoogleCadastrarRequest = Schemas['GoogleCadastrarRequest'];
 export type RedefinirSenhaRequest = Schemas['RedefinirSenhaRequest'];
 export type TrocarSenhaRequest = Schemas['TrocarSenhaRequest'];
+export type AtividadeRequest = Schemas['AtividadeRequest'];
 
 export type Curso = Schemas['ItemResponse'];
 export type Tema = Schemas['ItemResponse'];
+export type UnidadeTempo = Schemas['UnidadeTempoResponse'];
 
 export type Turma = Schemas['TurmaResponse'];
 export type TurmaDetalhe = Schemas['TurmaDetalheResponse'];

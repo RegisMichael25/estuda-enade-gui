@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { AtividadeAluno, DesempenhoAluno } from '@/api/models';
+import { formatarDuracao } from '@/lib/duracao';
 import { Card } from '@/components/ui/Card';
 import { Tag } from '@/components/ui/Tag';
 import { Play, ClipboardList, ArrowRight } from 'lucide-react';
@@ -87,10 +88,10 @@ export function AlunoInicioPage() {
 
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-sm text-ink truncate">{atv.titulo}</h3>
-                <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
+                <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted mt-0.5">
                   <span>{atv.totalQuestoes} questões</span>
                   <span>•</span>
-                  <span>{atv.duracaoMinutos ? `${atv.duracaoMinutos} min` : 'Sem tempo'}</span>
+                  <span>{formatarDuracao(atv)}</span>
                 </div>
               </div>
 

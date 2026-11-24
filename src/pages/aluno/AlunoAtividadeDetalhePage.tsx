@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { AtividadeAluno } from '@/api/models';
+import { CODIGO_MINUTOS, duracaoPorExtenso, outraUnidade, rotuloUnidade } from '@/lib/duracao';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
@@ -46,7 +47,7 @@ export function AlunoAtividadeDetalhePage() {
         mensagem: (
           <>
             {atividade.duracaoMinutos
-              ? `O cronômetro de ${atividade.duracaoMinutos} minutos começa agora e não pausa se você sair da tela.`
+              ? `O cronômetro de ${duracaoPorExtenso(atividade)} começa agora e não pausa se você sair da tela.`
               : 'Esta atividade não tem tempo limite.'}
             {restantes !== null &&
               ` Esta tentativa conta no seu limite: ${
@@ -79,6 +80,10 @@ export function AlunoAtividadeDetalhePage() {
   }
 
   const tentativasIlimitadas = atividade.maxTentativas === null;
+  // O número grande mostra o que o professor digitou; a linha de baixo, a outra unidade
+  const comTempo = atividade.duracaoMinutos !== null;
+  const valorDuracao = atividade.duracao ?? atividade.duracaoMinutos;
+  const codigoDuracao = atividade.unidadeTempo?.codigo ?? CODIGO_MINUTOS;
 
   return (
     <div className="flex flex-col gap-4">
@@ -131,11 +136,14 @@ export function AlunoAtividadeDetalhePage() {
 
         <Card color="yellow" className="p-3 text-center">
           <div className="text-2xl font-title font-extrabold text-ink">
-            {atividade.duracaoMinutos ? atividade.duracaoMinutos : '—'}
+            {comTempo ? valorDuracao : '—'}
           </div>
           <span className="text-[11px] font-bold text-ink/80 block mt-0.5">
-            {atividade.duracaoMinutos ? 'minutos' : 'sem tempo'}
+            {comTempo && valorDuracao !== null ? rotuloUnidade(valorDuracao, codigoDuracao) : 'sem tempo'}
           </span>
+          {comTempo && (
+            <span className="text-[10px] font-bold text-ink/60 block">({outraUnidade(atividade)})</span>
+          )}
         </Card>
 
         <Card color="pink" className="p-3 text-center">
@@ -157,7 +165,7 @@ export function AlunoAtividadeDetalhePage() {
         <ul className="text-xs text-muted leading-relaxed flex flex-col gap-1.5 list-disc list-inside">
           <li>
             {atividade.duracaoMinutos
-              ? `O cronômetro começará imediatamente ao tocar em Iniciar. Restando ${atividade.duracaoMinutos} minutos para a conclusão.`
+              ? `O cronômetro começará imediatamente ao tocar em Iniciar. Você terá ${duracaoPorExtenso(atividade)} para a conclusão.`
               : 'Esta atividade não possui tempo limite. Você pode realizá-la no seu próprio ritmo.'}
           </li>
           <li>Suas respostas marcadas são salvas automaticamente questão a questão.</li>
