@@ -170,7 +170,7 @@ export function AlunoTentativaPage() {
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>{formatarTempo(segundosRestantes)}</span>
+            <span title="Tempo restante (horas:minutos:segundos)">{formatarTempo(segundosRestantes)}</span>
           </div>
         )}
       </div>

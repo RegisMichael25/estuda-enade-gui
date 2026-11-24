@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { TurmaAluno, AtividadeAluno } from '@/api/models';
+import { formatarDuracao } from '@/lib/duracao';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -157,7 +158,7 @@ export function AlunoTurmasPage() {
                         <div className="text-sm font-bold text-ink truncate">{atv.titulo}</div>
                         <div className="text-xs text-muted">
                           {atv.totalQuestoes} questões ·{' '}
-                          {atv.duracaoMinutos ? `${atv.duracaoMinutos} min` : 'Sem tempo'}
+                          {formatarDuracao(atv)}
                           {atv.melhorAcertos != null &&
                             ` · Melhor: ${atv.melhorAcertos}/${atv.totalQuestoes}`}
                         </div>

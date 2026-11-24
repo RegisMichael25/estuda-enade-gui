@@ -5,11 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Cronômetro no formato horas:minutos:segundos, sempre com as horas: 7200 → "02:00:00", 90 → "00:01:30". */
 export function formatarTempo(segundos: number | null | undefined): string {
-  if (segundos === null || segundos === undefined || segundos < 0) return '00:00';
-  const mins = Math.floor(segundos / 60);
-  const secs = segundos % 60;
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  if (segundos === null || segundos === undefined || segundos < 0) return '00:00:00';
+  const total = Math.floor(segundos);
+  const horas = Math.floor(total / 3600);
+  const mins = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return [horas, mins, secs].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
 

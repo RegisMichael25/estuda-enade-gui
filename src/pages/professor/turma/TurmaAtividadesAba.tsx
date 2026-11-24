@@ -1,7 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { Atividade, Questao, StatusAtividade } from '@/api/models';
+import type { Atividade, Questao, StatusAtividade, UnidadeTempo } from '@/api/models';
+import {
+  CODIGO_MINUTOS,
+  DURACAO_MAXIMA_MINUTOS,
+  formatarDuracao,
+  paraMinutos,
+  previaConversao
+} from '@/lib/duracao';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -48,6 +55,16 @@ function rotuloTentativas(max: number | null) {
   return max === 1 ? '1 tentativa' : `${max} tentativas`;
 }
 
+/** Mesma regra da API: inteiro maior que zero e, convertido, até 600 minutos. */
+function validarDuracao(duracao: number | '', unidade: UnidadeTempo | undefined): string | null {
+  if (duracao === '') return null;
+  if (!Number.isInteger(duracao) || duracao <= 0) return 'Informe um número inteiro maior que zero.';
+  if (unidade && paraMinutos(duracao, unidade.codigo) > DURACAO_MAXIMA_MINUTOS) {
+    return 'A duração máxima é de 10 horas (600 minutos).';
+  }
+  return null;
+}
+
 export function TurmaAtividadesAba() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -63,7 +80,11 @@ export function TurmaAtividadesAba() {
   const [atividadeEmEdicao, setAtividadeEmEdicao] = useState<Atividade | null>(null);
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState<TipoAtividade>('SIMULADO');
-  const [duracaoMinutos, setDuracaoMinutos] = useState<number | ''>('');
+  const [duracao, setDuracao] = useState<number | ''>('');
+  /** Vazio = a unidade padrão (Minutos). */
+  const [unidadeTempoId, setUnidadeTempoId] = useState('');
+  const [unidades, setUnidades] = useState<UnidadeTempo[]>([]);
+  const [falhaUnidades, setFalhaUnidades] = useState(false);
   const [tentativas, setTentativas] = useState<OpcaoTentativas>('1');
   const [questoesBanco, setQuestoesBanco] = useState<Questao[]>([]);
   const [questoesAtividade, setQuestoesAtividade] = useState<Questao[]>([]);
@@ -92,11 +113,28 @@ export function TurmaAtividadesAba() {
     carregarAtividades();
   }, [turma.id]);
 
+  useEffect(() => {
+    api.catalogo
+      .obterUnidadesTempo()
+      .then(setUnidades)
+      .catch((err) => {
+        console.error('Erro ao carregar unidades de tempo:', err);
+        setFalhaUnidades(true);
+      });
+  }, []);
+
+  // A unidade padrão é reconhecida pelo código, que é fixo e único
+  const unidadeEfetivaId =
+    unidadeTempoId || unidades.find((u) => u.codigo === CODIGO_MINUTOS)?.id || '';
+  const unidadeSelecionada = unidades.find((u) => u.id === unidadeEfetivaId);
+  const erroDuracao = validarDuracao(duracao, unidadeSelecionada);
+
   function abrirModalCriar() {
     setAtividadeEmEdicao(null);
     setTitulo('');
     setTipo('SIMULADO');
-    setDuracaoMinutos('');
+    setDuracao('');
+    setUnidadeTempoId('');
     setTentativas('1');
     setQuestoesSelecionadas([]);
     setQuestoesAtividade([]);
@@ -108,7 +146,8 @@ export function TurmaAtividadesAba() {
     setAtividadeEmEdicao(atv);
     setTitulo(atv.titulo);
     setTipo(atv.tipo);
-    setDuracaoMinutos(atv.duracaoMinutos ?? '');
+    setDuracao(atv.duracao ?? '');
+    setUnidadeTempoId(atv.unidadeTempo?.id ?? '');
     setTentativas(atv.maxTentativas === null ? ILIMITADAS : String(atv.maxTentativas));
     setQuestoesSelecionadas([]);
     setQuestoesAtividade([]);
@@ -120,7 +159,8 @@ export function TurmaAtividadesAba() {
       const detalhe = await api.professor.obterAtividade(atv.id);
       setTitulo(detalhe.atividade.titulo);
       setTipo(detalhe.atividade.tipo);
-      setDuracaoMinutos(detalhe.atividade.duracaoMinutos ?? '');
+      setDuracao(detalhe.atividade.duracao ?? '');
+      setUnidadeTempoId(detalhe.atividade.unidadeTempo?.id ?? '');
       setTentativas(
         detalhe.atividade.maxTentativas === null
           ? ILIMITADAS
@@ -211,6 +251,14 @@ export function TurmaAtividadesAba() {
       toast('Selecione pelo menos uma questão do banco.');
       return;
     }
+    if (erroDuracao) {
+      toast(erroDuracao);
+      return;
+    }
+    if (duracao !== '' && !unidadeEfetivaId) {
+      toast('Não foi possível carregar as unidades de tempo. Recarregue a página ou deixe a duração vazia.');
+      return;
+    }
 
     if (
       publicarImediatamente &&
@@ -228,7 +276,9 @@ export function TurmaAtividadesAba() {
       const payload = {
         titulo: titulo.trim(),
         tipo,
-        duracaoMinutos: duracaoMinutos !== '' ? Number(duracaoMinutos) : null,
+        // Sem duração, a unidade não vai (a API a ignoraria)
+        duracao: duracao !== '' ? duracao : null,
+        unidadeTempoId: duracao !== '' ? unidadeEfetivaId : null,
         maxTentativas: tentativas === ILIMITADAS ? null : Number(tentativas),
         questaoIds: questoesSelecionadas
       };
@@ -365,7 +415,7 @@ export function TurmaAtividadesAba() {
                     <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
                       <span>{atv.totalQuestoes} questões</span>
                       <span>•</span>
-                      <span>{atv.duracaoMinutos ? `${atv.duracaoMinutos} min` : 'Sem tempo'}</span>
+                      <span>{formatarDuracao(atv)}</span>
                       <span>•</span>
                       <span>{rotuloTentativas(atv.maxTentativas)}</span>
                     </div>
@@ -454,7 +504,7 @@ export function TurmaAtividadesAba() {
             required
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Combobox
                 label="Tipo"
@@ -467,13 +517,47 @@ export function TurmaAtividadesAba() {
               />
             </div>
 
-            <Input
-              label="Duração em minutos (vazio = livre)"
-              type="number"
-              placeholder="Ex: 30"
-              value={duracaoMinutos}
-              onChange={(e) => setDuracaoMinutos(e.target.value === '' ? '' : Number(e.target.value))}
-            />
+            <div className="flex flex-col gap-1">
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <Input
+                    id="duracao-atividade"
+                    label="Duração"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    step={1}
+                    placeholder="Ex: 30"
+                    value={duracao}
+                    aria-invalid={!!erroDuracao || undefined}
+                    aria-describedby="duracao-atividade-dica"
+                    className={erroDuracao ? 'border-pink bg-pink/10' : undefined}
+                    onChange={(e) => setDuracao(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+                <Combobox
+                  id="unidade-tempo-atividade"
+                  label="Unidade"
+                  className="w-32 flex-none"
+                  opcoes={unidades.map((u) => ({ valor: u.id, rotulo: u.nome }))}
+                  valor={unidadeEfetivaId}
+                  aoMudar={setUnidadeTempoId}
+                  disabled={falhaUnidades}
+                  placeholder={falhaUnidades ? 'Indisponível' : 'Unidade'}
+                />
+              </div>
+              <p
+                id="duracao-atividade-dica"
+                className={`text-xs ${erroDuracao || (falhaUnidades && duracao !== '') ? 'font-bold text-red-600' : 'text-muted'}`}
+              >
+                {erroDuracao ??
+                  (falhaUnidades && duracao !== ''
+                    ? 'Não foi possível carregar as unidades de tempo.'
+                    : duracao === '' || !unidadeSelecionada
+                      ? 'Vazio = sem tempo. Máximo de 10 horas (600 minutos).'
+                      : previaConversao(duracao, unidadeSelecionada.codigo))}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1">

@@ -28,6 +28,8 @@ import type {
   ProfessorPendente,
   Curso,
   Tema,
+  UnidadeTempo,
+  AtividadeRequest,
   Erro,
   CadastrarRequest,
   EntrarRequest,
@@ -272,6 +274,11 @@ export const api = {
     /** Cada tema pertence a um curso. Sem `cursoId`, vêm os temas de todos os cursos. */
     obterTemas(cursoId?: string): Promise<Tema[]> {
       return request<Tema[]>(cursoId ? `/temas?cursoId=${encodeURIComponent(cursoId)}` : '/temas');
+    },
+
+    /** Unidades da duração de uma atividade: Minutos (`min`) e Horas (`h`), nesta ordem. */
+    obterUnidadesTempo(): Promise<UnidadeTempo[]> {
+      return request<UnidadeTempo[]>('/unidades-tempo');
     }
   },
 
@@ -488,16 +495,7 @@ export const api = {
       return request<Atividade[]>(`/professor/turmas/${turmaId}/atividades`);
     },
 
-    criarAtividadeTurma(
-      turmaId: string,
-      payload: {
-        titulo: string;
-        tipo: 'SIMULADO' | 'LISTA';
-        duracaoMinutos?: number | null;
-        maxTentativas?: number | null;
-        questaoIds: string[];
-      }
-    ): Promise<Atividade> {
+    criarAtividadeTurma(turmaId: string, payload: AtividadeRequest): Promise<Atividade> {
       return request<Atividade>(`/professor/turmas/${turmaId}/atividades`, {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -508,16 +506,7 @@ export const api = {
       return request<AtividadeDetalhe>(`/professor/atividades/${atividadeId}`);
     },
 
-    atualizarAtividade(
-      atividadeId: string,
-      payload: {
-        titulo: string;
-        tipo: 'SIMULADO' | 'LISTA';
-        duracaoMinutos?: number | null;
-        maxTentativas?: number | null;
-        questaoIds: string[];
-      }
-    ): Promise<Atividade> {
+    atualizarAtividade(atividadeId: string, payload: AtividadeRequest): Promise<Atividade> {
       return request<Atividade>(`/professor/atividades/${atividadeId}`, {
         method: 'PUT',
         body: JSON.stringify(payload)
