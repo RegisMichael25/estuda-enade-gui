@@ -20,7 +20,6 @@ export type UnidadeTempo = Schemas['UnidadeTempoResponse'];
 
 export type Turma = Schemas['TurmaResponse'];
 export type TurmaDetalhe = Schemas['TurmaDetalheResponse'];
-export type ResumoTurma = Schemas['ResumoTurmaResponse'];
 export type TurmaAluno = Schemas['TurmaAlunoResponse'];
 export type Aluno = Schemas['AlunoResponse'];
 export type DesempenhoAlunoTurma = Schemas['DesempenhoAlunoTurmaResponse'];
@@ -39,7 +38,6 @@ export type StatusQuestao = Schemas['StatusQuestao'];
 export type Atividade = Schemas['AtividadeResponse'];
 export type AtividadeDetalhe = Schemas['AtividadeDetalheResponse'];
 export type AtividadeAluno = Schemas['AtividadeAlunoResponse'];
-export type AtividadeRecente = Schemas['AtividadeRecente'];
 export type StatusAtividade = Schemas['StatusAtividade'];
 export type TipoAtividade = Schemas['TipoAtividade'];
 export type Encerramento = Schemas['Encerramento'];

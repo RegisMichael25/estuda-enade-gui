@@ -375,8 +375,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Painel inicial: números e atividades recentes de todas as turmas ativas
-         * @description Considera só as turmas não arquivadas. `totalAlunos` conta cada aluno uma vez, mesmo que esteja em mais de uma turma.
+         * Painel inicial: números e atividades recentes das turmas ativas, ou de uma turma
+         * @description Considera só as turmas não arquivadas do professor. `totalAlunos` conta cada aluno uma vez, mesmo que esteja em mais de uma turma. Com `turmaId`, todos os números, a lista `turmas` (com um item) e as atividades recentes são só dessa turma. `questoesNoBanco` é sempre o total do banco.
          */
         get: operations["painelDoProfessor"];
         put?: never;
@@ -512,23 +512,6 @@ export interface paths {
         };
         /** Desempenho do aluno nas atividades da turma */
         get: operations["desempenhoDoAluno"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/professor/turmas/{turmaId}/resumo": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Painel da turma: alunos, banco, atividades abertas e média */
-        get: operations["resumoDaTurma"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1674,39 +1657,6 @@ export interface components {
             melhorTema: string | null;
             porTema: components["schemas"]["TemaDesempenho"][];
         };
-        AtividadeRecente: {
-            /** Format: uuid */
-            id: string;
-            titulo: string;
-            tipo: string;
-            status: string;
-            /** Format: int32 */
-            totalQuestoes: number;
-            /**
-             * Format: int32
-             * @description Duração convertida para minutos. Nulo = sem tempo.
-             */
-            duracaoMinutos: number | null;
-            /**
-             * Format: int32
-             * @description Valor digitado pelo professor, na unidade de `unidadeTempo`.
-             */
-            duracao: number | null;
-            unidadeTempo: components["schemas"]["UnidadeTempoResponse"] | null;
-            /** Format: int64 */
-            concluiram: number;
-        };
-        ResumoTurmaResponse: {
-            /** Format: int64 */
-            totalAlunos: number;
-            /** Format: int64 */
-            questoesNoBanco: number;
-            /** Format: int64 */
-            atividadesAbertas: number;
-            /** Format: int32 */
-            mediaPercentual: number | null;
-            atividades: components["schemas"]["AtividadeRecente"][];
-        };
         /** @description Sem tentativa finalizada, acertos, total e tempo vêm nulos. */
         ResultadoAluno: {
             /** Format: uuid */
@@ -2596,7 +2546,10 @@ export interface operations {
     };
     painelDoProfessor: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Restringe o painel a uma turma ativa do professor. Sem ele, o painel agrega todas as turmas ativas. */
+                turmaId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2614,6 +2567,15 @@ export interface operations {
             };
             /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description A turma de `turmaId` não existe, pertence a outro professor ou está arquivada. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2968,47 +2930,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DesempenhoAlunoTurmaResponse"];
-                };
-            };
-            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErroResponse"];
-                };
-            };
-            /** @description Não encontrado, ou pertence a outro usuário. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErroResponse"];
-                };
-            };
-            default: components["responses"]["Erro"];
-        };
-    };
-    resumoDaTurma: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                turmaId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResumoTurmaResponse"];
                 };
             };
             /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */

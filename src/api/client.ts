@@ -5,7 +5,6 @@ import type {
   Sessao,
   Turma,
   TurmaDetalhe,
-  ResumoTurma,
   TurmaAluno,
   DesempenhoAlunoTurma,
   PainelProfessor,
@@ -425,9 +424,10 @@ export const api = {
       });
     },
 
-    /** Painel inicial: números e atividades recentes de todas as turmas ativas. */
-    obterPainel(): Promise<PainelProfessor> {
-      return request<PainelProfessor>('/professor/painel');
+    /** Painel inicial: todas as turmas ativas ou, com `turmaId`, só essa turma (404 se arquivada ou de outro professor). */
+    obterPainel(turmaId?: string): Promise<PainelProfessor> {
+      const query = turmaId ? `?turmaId=${encodeURIComponent(turmaId)}` : '';
+      return request<PainelProfessor>(`/professor/painel${query}`);
     },
 
     /** Só as turmas ativas, a menos que `incluirArquivadas` seja verdadeiro. */
@@ -455,10 +455,6 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(payload)
       });
-    },
-
-    obterResumoTurma(turmaId: string): Promise<ResumoTurma> {
-      return request<ResumoTurma>(`/professor/turmas/${turmaId}/resumo`);
     },
 
     gerarNovoConviteTurma(turmaId: string): Promise<Turma> {
