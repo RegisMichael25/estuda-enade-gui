@@ -1,26 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { AtividadeAluno, DesempenhoAluno } from '@/api/models';
+import type { AtividadeAluno, DesempenhoAluno, ProvaPessoalResumo } from '@/api/models';
 import { formatarDuracao } from '@/lib/duracao';
 import { Card } from '@/components/ui/Card';
 import { Tag } from '@/components/ui/Tag';
-import { Play, ClipboardList, ArrowRight } from 'lucide-react';
+import { Play, ClipboardList, ArrowRight, History } from 'lucide-react';
 
 export function AlunoInicioPage() {
   const navigate = useNavigate();
 
   const [atividades, setAtividades] = useState<AtividadeAluno[]>([]);
   const [desempenho, setDesempenho] = useState<DesempenhoAluno | null>(null);
+  // Prova montada pelo aluno que ficou pela metade (a mais recente)
+  const [provaEmAndamento, setProvaEmAndamento] = useState<ProvaPessoalResumo | null>(null);
 
   async function carregarDados() {
     try {
-      const [listaAtividades, dadosDesempenho] = await Promise.all([
+      const [listaAtividades, dadosDesempenho, provas] = await Promise.all([
         api.aluno.obterAtividades().catch((): AtividadeAluno[] => []),
-        api.aluno.obterDesempenho().catch((): DesempenhoAluno | null => null)
+        api.aluno.obterDesempenho().catch((): DesempenhoAluno | null => null),
+        api.aluno.listarProvas().catch((): ProvaPessoalResumo[] => [])
       ]);
       setAtividades(listaAtividades);
       setDesempenho(dadosDesempenho);
+      setProvaEmAndamento(provas.find((p) => !p.concluidaEm) ?? null);
     } catch (err) {
       console.error('Erro ao carregar dados do aluno:', err);
     }
@@ -120,6 +124,26 @@ export function AlunoInicioPage() {
           Estudo individual
         </span>
 
+        {provaEmAndamento && (
+          <Card
+            color="yellow"
+            interactive
+            onClick={() => navigate(`/aluno/provas/${provaEmAndamento.id}`)}
+            className="p-4 flex items-center gap-3.5"
+          >
+            <div className="w-11 h-11 rounded-xl bg-paper border-2 border-ink flex items-center justify-center flex-none shadow-brutal-sm">
+              <History className="w-5 h-5 text-ink" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-sm text-ink">Continuar prova</h3>
+              <p className="text-xs text-ink/80 mt-0.5 truncate">
+                {provaEmAndamento.nome} · {provaEmAndamento.respondidas} de {provaEmAndamento.total} respondidas
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-ink flex-none" />
+          </Card>
+        )}
+
         <Card
           color="green"
           interactive
@@ -131,9 +155,9 @@ export function AlunoInicioPage() {
           </div>
 
           <div className="flex-1">
-            <h3 className="font-bold text-sm text-ink">Praticar no Banco Livre</h3>
+            <h3 className="font-bold text-sm text-ink">Monte sua prova</h3>
             <p className="text-xs text-ink/80 mt-0.5">
-              Filtre questões oficiais do ENADE por ano e tema com gabarito imediato.
+              Escolha temas e questões do ENADE, ou sorteie, e pratique com gabarito na hora.
             </p>
           </div>
 
