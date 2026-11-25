@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { QuestaoAluno } from '@/api/models';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
@@ -19,7 +19,13 @@ export function AlunoPraticaPage() {
   const navigate = useNavigate();
   const confirmar = useConfirmacao();
   const { toast } = useToast();
-  const [estado, setEstado] = useState<EstadoMontagem>(carregarEstado);
+  // "?foco=fracos" vem do atalho "Praticar temas fracos" (Início): abre no conteúdo com esses temas marcados
+  const [parametros, setParametros] = useSearchParams();
+  const focoFracos = parametros.get('foco') === 'fracos';
+  const [estado, setEstado] = useState<EstadoMontagem>(() => {
+    const salvo = carregarEstado();
+    return focoFracos ? { ...salvo, fase: 'conteudo' } : salvo;
+  });
   const [criando, setCriando] = useState(false);
 
   useEffect(() => {
@@ -115,6 +121,8 @@ export function AlunoPraticaPage() {
         historico={estado.historico}
         aoMudar={mudarConteudo}
         aoAvancar={() => atualizar({ fase: 'questoes' })}
+        focoFracos={focoFracos}
+        aoAplicarFoco={() => setParametros({}, { replace: true })}
       />
     </div>
   );

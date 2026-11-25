@@ -16,6 +16,9 @@ interface EtapaConteudoProps {
   historico: HistoricoPratica;
   aoMudar: (parcial: { cursoId?: string; temaIds?: string[]; anos?: number[]; historico?: HistoricoPratica }) => void;
   aoAvancar: () => void;
+  /** Veio do atalho "Praticar temas fracos": marca os temas fracos assim que o curso carregar. */
+  focoFracos?: boolean;
+  aoAplicarFoco?: () => void;
 }
 
 const OPCOES_HISTORICO: { valor: HistoricoPratica; rotulo: string }[] = [
@@ -29,7 +32,16 @@ function alternar<T>(lista: T[], item: T): T[] {
 }
 
 /** Passo 1: curso, temas e anos da prova. Nenhum tema ou ano marcado vale como "todos". */
-export function EtapaConteudo({ cursoId, temaIds, anos, historico, aoMudar, aoAvancar }: EtapaConteudoProps) {
+export function EtapaConteudo({
+  cursoId,
+  temaIds,
+  anos,
+  historico,
+  aoMudar,
+  aoAvancar,
+  focoFracos = false,
+  aoAplicarFoco,
+}: EtapaConteudoProps) {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
   const [contagem, setContagem] = useState<ContagemTema[]>([]);
@@ -69,6 +81,34 @@ export function EtapaConteudo({ cursoId, temaIds, anos, historico, aoMudar, aoAv
     .filter((c) => temasValidos.length === 0 || temasValidos.includes(c.tema.id))
     .reduce((soma, c) => soma + c.total, 0);
   const fracos = contagem.filter(temaFraco);
+  // Sem curso escolhido, o atalho escolhe o curso com mais temas fracos
+  useEffect(() => {
+    if (!focoFracos || cursoId || cursos.length === 0) return;
+    let ativo = true;
+    Promise.all(
+      cursos.map((c) =>
+        api.aluno
+          .obterContagemPratica(c.id, [], 'TODAS')
+          .then((lista) => ({ id: c.id, fracos: lista.filter(temaFraco).length }))
+          .catch(() => ({ id: c.id, fracos: 0 }))
+      )
+    ).then((porCurso) => {
+      if (!ativo) return;
+      const melhor = porCurso.reduce((a, b) => (b.fracos > a.fracos ? b : a));
+      if (melhor.fracos > 0) aoMudar({ cursoId: melhor.id, temaIds: [], anos: [] });
+      else aoAplicarFoco?.();
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [focoFracos, cursoId, cursos]);
+
+  useEffect(() => {
+    if (!focoFracos || carregando || contagem.length === 0) return;
+    if (fracos.length > 0) aoMudar({ temaIds: fracos.map((f) => f.tema.id) });
+    aoAplicarFoco?.();
+  }, [focoFracos, carregando, contagem]);
+
   const soFracos = fracos.length > 0 && temasValidos.length === fracos.length && fracos.every((f) => temasValidos.includes(f.tema.id));
 
   return (
