@@ -150,7 +150,13 @@ export function AlunoTurmasPage() {
                   atividadesTurma.map((atv) => (
                     <button
                       key={atv.id}
-                      onClick={() => navigate(`/aluno/atividade/${atv.id}`)}
+                      onClick={() =>
+                        navigate(
+                          !atv.podeIniciar && atv.melhorTentativaId
+                            ? `/aluno/tentativa/${atv.melhorTentativaId}/resultado`
+                            : `/aluno/atividade/${atv.id}`
+                        )
+                      }
                       className="flex items-center gap-3 p-2.5 rounded-xl border-2 border-ink bg-paper hover:bg-bg transition-all text-left cursor-pointer"
                     >
                       <ClipboardList className="w-4 h-4 text-ink flex-none" />

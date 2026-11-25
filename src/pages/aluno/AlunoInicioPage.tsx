@@ -44,11 +44,10 @@ export function AlunoInicioPage() {
         </h2>
         <p className="text-xs text-white/90 mt-1">
           {desempenho && (desempenho.respondidas ?? 0) > 0
-            ? `${desempenho.respondidas} questões respondidas · ${
-                desempenho.melhorTema
-                  ? `Melhor tema: ${desempenho.melhorTema}`
-                  : `${desempenho.acertos} acertos`
-              }`
+            ? `${desempenho.respondidas} questões respondidas · ${desempenho.melhorTema
+              ? `Melhor tema: ${desempenho.melhorTema}`
+              : `${desempenho.acertos} acertos`
+            }`
             : 'Resolva questões para visualizar suas estatísticas por matéria.'}
         </p>
       </Card>
@@ -75,13 +74,18 @@ export function AlunoInicioPage() {
             <Card
               key={atv.id}
               interactive
-              onClick={() => navigate(`/aluno/atividade/${atv.id}`)}
+              onClick={() =>
+                navigate(
+                  !atv.podeIniciar && atv.melhorTentativaId
+                    ? `/aluno/tentativa/${atv.melhorTentativaId}/resultado`
+                    : `/aluno/atividade/${atv.id}`
+                )
+              }
               className="p-3.5 flex items-center gap-3.5"
             >
               <div
-                className={`w-11 h-11 rounded-xl border-2 border-ink flex items-center justify-center flex-none shadow-brutal-sm ${
-                  atv.tipo === 'SIMULADO' ? 'bg-yellow' : 'bg-blue'
-                }`}
+                className={`w-11 h-11 rounded-xl border-2 border-ink flex items-center justify-center flex-none shadow-brutal-sm ${atv.tipo === 'SIMULADO' ? 'bg-yellow' : 'bg-blue'
+                  }`}
               >
                 <ClipboardList className="w-5 h-5 text-ink" />
               </div>

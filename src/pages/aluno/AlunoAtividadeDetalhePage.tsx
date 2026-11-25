@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Trophy } from 'lucide-react';
 
 export function AlunoAtividadeDetalhePage() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +25,10 @@ export function AlunoAtividadeDetalhePage() {
       if (!id) return;
       try {
         const dados = await api.aluno.obterAtividadeDetalhe(id);
+        if (!dados.podeIniciar && dados.melhorTentativaId) {
+          navigate(`/aluno/tentativa/${dados.melhorTentativaId}/resultado`, { replace: true });
+          return;
+        }
         setAtividade(dados);
       } catch (err: any) {
         toast(err.mensagem || 'Erro ao carregar detalhes da atividade.');
@@ -50,8 +54,7 @@ export function AlunoAtividadeDetalhePage() {
               ? `O cronômetro de ${duracaoPorExtenso(atividade)} começa agora e não pausa se você sair da tela.`
               : 'Esta atividade não tem tempo limite.'}
             {restantes !== null &&
-              ` Esta tentativa conta no seu limite: ${
-                restantes <= 1 ? 'é a última que você tem' : `restam ${restantes}, incluindo esta`
+              ` Esta tentativa conta no seu limite: ${restantes <= 1 ? 'é a última que você tem' : `restam ${restantes}, incluindo esta`
               }.`}
           </>
         ),
@@ -114,12 +117,19 @@ export function AlunoAtividadeDetalhePage() {
 
       {atividade.status === 'ENCERRADA' && (
         <Card className="p-3.5 bg-paper border-2 border-ink">
-          <div className="flex items-center gap-2 text-ink">
-            <AlertTriangle className="w-4 h-4 text-orange flex-none" />
-            <p className="text-xs font-bold">
-              Esta atividade foi encerrada pelo professor e não aceita novos envios ou tentativas.
-            </p>
-          </div>
+            <div className="flex items-start gap-2 text-ink">
+              <AlertTriangle className="w-4 h-4 text-orange flex-none mt-0.5" />
+              <div className="text-xs">
+                <p className="font-bold">
+                  Esta atividade foi encerrada pelo professor e não aceita novos envios ou tentativas.
+                </p>
+                {!atividade.melhorTentativaId && !atividade.tentativaAbertaId && (
+                  <p className="text-muted font-semibold mt-1">
+                    Você não realizou nenhuma tentativa nesta atividade antes do encerramento.
+                  </p>
+                )}
+              </div>
+            </div>
         </Card>
       )}
 
@@ -178,22 +188,36 @@ export function AlunoAtividadeDetalhePage() {
         </ul>
       </Card>
 
-      <Button
-        variant="primary"
-        size="lg"
-        fullWidth
-        carregando={iniciando}
-        disabled={!atividade.podeIniciar}
-        onClick={handleIniciar}
-      >
-        {atividade.status === 'ENCERRADA'
-          ? 'Atividade encerrada'
-          : atividade.tentativaAbertaId
-            ? 'Continuar tentativa'
-            : atividade.podeIniciar
-              ? 'Iniciar atividade'
-              : 'Tentativas esgotadas'}
-      </Button>
+      <div className="flex flex-col gap-2.5">
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          carregando={iniciando}
+          disabled={!atividade.podeIniciar}
+          onClick={handleIniciar}
+        >
+          {atividade.status === 'ENCERRADA'
+            ? 'Atividade encerrada'
+            : atividade.tentativaAbertaId
+              ? 'Continuar tentativa'
+              : atividade.podeIniciar
+                ? 'Iniciar atividade'
+                : 'Tentativas esgotadas'}
+        </Button>
+
+        {atividade.melhorTentativaId && (
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => navigate(`/aluno/tentativa/${atividade.melhorTentativaId}/resultado`)}
+          >
+            <Trophy className="w-4 h-4 text-orange" />
+            Ver melhor resultado ({atividade.melhorAcertos}/{atividade.totalQuestoes})
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
