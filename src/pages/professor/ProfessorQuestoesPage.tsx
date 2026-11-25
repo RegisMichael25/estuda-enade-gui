@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { Questao, Sinalizacao } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
+import { Paginacao, faixaDaPagina } from '@/components/ui/Paginacao';
 import { Tag, Badge } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { Plus, Flag, EyeOff, Check, Pencil, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
+
+/** Questões por página no banco. */
+const QUESTOES_POR_PAGINA = 15;
 
 export function ProfessorQuestoesPage() {
   const navigate = useNavigate();
@@ -22,8 +26,11 @@ export function ProfessorQuestoesPage() {
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(false);
+  // Página atual (começa em 0, como na API); volta para a primeira a cada novo filtro
+  const [pagina, setPagina] = useState(0);
+  const topoDaListaRef = useRef<HTMLDivElement>(null);
 
-  // Filtro em etapas: a lista só carrega depois de escolher o curso
+  // Sem curso na URL, abre com "Todos os cursos"
   const cursoIdInicial = searchParams.get('cursoId') || (location.state as any)?.cursoId || '';
   const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(() => filtroVazio(cursoIdInicial));
 
@@ -32,11 +39,13 @@ export function ProfessorQuestoesPage() {
     const cId = searchParams.get('cursoId') || (location.state as any)?.cursoId || '';
     if (cId && cId !== filtro.cursoId) {
       setFiltro((prev) => ({ ...prev, cursoId: cId }));
+      setPagina(0);
     }
   }, [searchParams, location.state]);
 
   function handleMudarFiltro(novoFiltro: ValorFiltroQuestoes) {
     setFiltro(novoFiltro);
+    setPagina(0);
     if (novoFiltro.cursoId) {
       setSearchParams({ cursoId: novoFiltro.cursoId }, { replace: true });
     } else {
@@ -62,23 +71,24 @@ export function ProfessorQuestoesPage() {
   }
 
   async function carregar() {
-    if (!filtro.cursoId) {
-      setQuestoes([]);
-      setTotal(null);
-      return;
-    }
     setCarregando(true);
     try {
       const dados = await api.professor.obterQuestoes({
-        cursoId: filtro.cursoId,
+        cursoId: filtro.cursoId || undefined,
         temaId: filtro.temaId ?? undefined,
         ano: filtro.ano ?? undefined,
         busca: filtro.busca || undefined,
         status: filtro.status ?? undefined,
         apenasMinhas: filtro.apenasMinhas,
         apenasSinalizadas: filtro.apenasSinalizadas,
-        tamanho: 50
+        pagina,
+        tamanho: QUESTOES_POR_PAGINA
       });
+      // Ocultar ou excluir pode esvaziar a última página: volta para a anterior
+      if (dados.itens.length === 0 && pagina > 0) {
+        setPagina(Math.max(0, Math.ceil(dados.total / QUESTOES_POR_PAGINA) - 1));
+        return;
+      }
       setQuestoes(dados.itens);
       setTotal(dados.total);
     } catch (err) {
@@ -90,7 +100,13 @@ export function ProfessorQuestoesPage() {
 
   useEffect(() => {
     carregar();
-  }, [filtro]);
+  }, [filtro, pagina]);
+
+  function irParaPagina(nova: number) {
+    setPagina(nova);
+    // No desktop quem rola é o <main>, no celular é a janela: scrollIntoView serve aos dois
+    topoDaListaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   async function handlePublicarQuestao(q: Questao) {
     const ok = await confirmar({
@@ -203,24 +219,19 @@ export function ProfessorQuestoesPage() {
         aoMudar={handleMudarFiltro}
         obterAnos={api.professor.obterAnosBanco}
         filtrosDoBanco
+        todosOsCursos
         total={total}
         iniciarRecolhido={false}
       />
 
       {/* Lista de Questões */}
-      <div className="flex flex-col gap-3">
-        {total !== null && total > questoes.length && !carregando && (
+      <div ref={topoDaListaRef} className="flex flex-col gap-3 scroll-mt-4">
+        {total !== null && total > QUESTOES_POR_PAGINA && (
           <p className="text-xs font-bold text-muted">
-            Mostrando as {questoes.length} mais recentes de {total}. Refine o filtro para encontrar as demais.
+            Mostrando {faixaDaPagina(pagina, QUESTOES_POR_PAGINA, total)}, das mais recentes para as mais antigas.
           </p>
         )}
-        {!filtro.cursoId ? (
-          <Card className="p-8 text-center bg-paper">
-            <p className="text-sm font-bold text-muted">
-              Escolha o curso e clique em Filtrar para ver as questões.
-            </p>
-          </Card>
-        ) : carregando ? (
+        {carregando ? (
           <div className="p-8 text-center text-xs font-bold text-muted">
             Carregando questões...
           </div>
@@ -399,6 +410,17 @@ export function ProfessorQuestoesPage() {
               </Card>
             );
           })
+        )}
+
+        {total !== null && (
+          <Paginacao
+            pagina={pagina}
+            tamanho={QUESTOES_POR_PAGINA}
+            total={total}
+            aoMudar={irParaPagina}
+            carregando={carregando}
+            className="mt-1"
+          />
         )}
       </div>
 

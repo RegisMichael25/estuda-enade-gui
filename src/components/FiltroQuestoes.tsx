@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 export interface ValorFiltroQuestoes {
-  /** `''` enquanto o curso não foi escolhido. */
+  /** `''` enquanto o curso não foi escolhido (ou "Todos os cursos", com `todosOsCursos`). */
   cursoId: string;
   temaId: string | null;
   ano: number | null;
@@ -52,6 +52,11 @@ interface FiltroQuestoesProps {
    * (ex.: curso da turma na montagem de atividade) e aberto quando ainda falta escolher.
    */
   iniciarRecolhido?: boolean;
+  /**
+   * Oferece "Todos os cursos" (cursoId `''`) e já permite filtrar sem escolher curso. O tema só aparece com
+   * um curso escolhido, porque o mesmo nome de tema pode existir em cursos diferentes.
+   */
+  todosOsCursos?: boolean;
   className?: string;
 }
 
@@ -87,6 +92,7 @@ export function FiltroQuestoes({
   total = null,
   layout = 'largo',
   iniciarRecolhido,
+  todosOsCursos = false,
   className,
 }: FiltroQuestoesProps) {
   const [expandido, setExpandido] = useState(() => !(iniciarRecolhido ?? !!valor.cursoId));
@@ -117,10 +123,13 @@ export function FiltroQuestoes({
   useEffect(() => {
     setTemas([]);
     setAnos([]);
-    if (!rascunho.cursoId) return;
+    if (!rascunho.cursoId && !todosOsCursos) return;
 
     let ativo = true;
-    Promise.all([api.catalogo.obterTemas(rascunho.cursoId), obterAnos(rascunho.cursoId)])
+    Promise.all([
+      rascunho.cursoId ? api.catalogo.obterTemas(rascunho.cursoId) : Promise.resolve([]),
+      obterAnos(rascunho.cursoId),
+    ])
       .then(([listaTemas, listaAnos]) => {
         if (!ativo) return;
         setTemas(listaTemas);
@@ -144,7 +153,7 @@ export function FiltroQuestoes({
   }
 
   function aplicar() {
-    if (!rascunho.cursoId) return;
+    if (!rascunho.cursoId && !todosOsCursos) return;
     aoMudar({ ...rascunho, busca: rascunho.busca.trim() });
   }
 
@@ -154,8 +163,10 @@ export function FiltroQuestoes({
     aoMudar(vazio);
   }
 
-  const temCursoAplicado = !!valor.cursoId;
+  const temCursoAplicado = !!valor.cursoId || todosOsCursos;
   const temCurso = !!rascunho.cursoId;
+  // Com "Todos os cursos", dá para pesquisar e refinar sem escolher um curso
+  const podeFiltrar = temCurso || todosOsCursos;
   const pendente = !mesmoFiltro({ ...rascunho, busca: rascunho.busca.trim() }, valor);
   const refinado =
     !!rascunho.temaId || !!rascunho.ano || !!rascunho.status || rascunho.apenasMinhas ||
@@ -164,7 +175,7 @@ export function FiltroQuestoes({
 
   // O resumo do cabeçalho mostra o filtro aplicado, que é o que a lista exibe
   const resumo = [
-    cursos.find((c) => c.id === valor.cursoId)?.nome,
+    valor.cursoId ? cursos.find((c) => c.id === valor.cursoId)?.nome : 'Todos os cursos',
     valor.busca ? `"${valor.busca}"` : null,
     temas.find((t) => t.id === valor.temaId)?.nome,
     valor.ano ? String(valor.ano) : null,
@@ -176,13 +187,17 @@ export function FiltroQuestoes({
   const largo = layout === 'largo';
 
   return (
-    <Card className={cn('p-0 bg-paper overflow-hidden', className)}>
+    // Sem overflow-hidden: a lista dos selects precisa poder passar da borda do card
+    <Card className={cn('p-0 bg-paper', className)}>
       {/* Cabeçalho: sempre visível, com o resumo do filtro aplicado; clicar recolhe ou expande */}
       <button
         type="button"
         onClick={() => setExpandido((e) => !e)}
         aria-expanded={expandido}
-        className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-bg/60"
+        className={cn(
+          'w-full px-4 py-3 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-bg/60',
+          expandido ? 'rounded-t-2xl' : 'rounded-2xl'
+        )}
       >
         <span className="flex items-center gap-2 min-w-0">
           <SlidersHorizontal className="w-4 h-4 shrink-0 text-ink" />
@@ -206,22 +221,25 @@ export function FiltroQuestoes({
           <div className={cn('grid gap-4', largo && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]')}>
             {/* ① Curso */}
             <div className="flex flex-col gap-2">
-              <Etapa numero={1} titulo="Curso" ativa={!temCurso} />
+              <Etapa numero={1} titulo="Curso" ativa={!podeFiltrar} />
               <Combobox
                 tamanho="sm"
-                placeholder="Selecione o curso"
-                opcoes={cursos.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+                placeholder={todosOsCursos ? 'Todos os cursos' : 'Selecione o curso'}
+                opcoes={[
+                  ...(todosOsCursos ? [{ valor: '', rotulo: 'Todos os cursos' }] : []),
+                  ...cursos.map((c) => ({ valor: c.id, rotulo: c.nome })),
+                ]}
                 valor={rascunho.cursoId}
                 aoMudar={trocarCurso}
                 mensagemVazia="Nenhum curso cadastrado"
               />
-              {!temCurso && (
+              {!podeFiltrar && (
                 <p className="text-xs text-muted">Escolha o curso para pesquisar e refinar por tema e ano.</p>
               )}
             </div>
 
             {/* ② Refinar (opcional) */}
-            {temCurso && (
+            {podeFiltrar && (
               <div className={cn('flex flex-col gap-2', largo && 'lg:pl-4 lg:border-l-2 lg:border-ink/20')}>
                 <Etapa numero={2} titulo="Refinar (opcional)" ativa />
 
@@ -255,7 +273,8 @@ export function FiltroQuestoes({
                 <div className={cn('grid gap-2', filtrosDoBanco ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
                   <Combobox
                     tamanho="sm"
-                    placeholder="Todos os temas"
+                    disabled={!temCurso}
+                    placeholder={temCurso ? 'Todos os temas' : 'Tema: escolha um curso'}
                     opcoes={[
                       { valor: '', rotulo: 'Todos os temas' },
                       ...temas.map((t) => ({ valor: t.id, rotulo: t.nome })),
@@ -310,7 +329,7 @@ export function FiltroQuestoes({
 
           {/* Ações: Filtrar aplica tudo (curso, pesquisa e refinamentos) de uma vez */}
           <div className="flex items-center justify-end gap-3 flex-wrap pt-3 border-t-2 border-ink/20">
-            {pendente && temCurso && (
+            {pendente && podeFiltrar && (
               <span className="text-xs font-bold text-muted mr-auto">Alterações ainda não aplicadas</span>
             )}
             {refinado && (
@@ -327,7 +346,7 @@ export function FiltroQuestoes({
               type="button"
               variant={pendente ? 'primary' : 'secondary'}
               size="sm"
-              disabled={!temCurso}
+              disabled={!podeFiltrar}
               onClick={aplicar}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />

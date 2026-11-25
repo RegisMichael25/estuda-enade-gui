@@ -26,7 +26,7 @@ Configuração opcional em `.env` (veja [`.env.example`](.env.example)).
 
 Telas públicas: `/login` (e-mail e senha), `/cadastro` (aluno ou professor), `/esqueci-senha` (código por e-mail e nova senha). Quem já tem sessão vai direto para a própria área. Na área logada, o botão com ícone de chave cria ou troca a senha.
 
-Para testar com os dados de exemplo da API: `ana@estudaenade.dev` (aluna) ou `professor@estudaenade.dev`, com a senha `123456`. Com a API em `OTP_PROVIDER=log` (padrão), o código do "esqueci a senha" aparece no log da API.
+Para testar, entre com a conta do professor (dados em `../ACESSOS-LOCAIS.txt`) ou cadastre um aluno pela tela. Com a API em `OTP_PROVIDER=log` (padrão), o código do "esqueci a senha" aparece no log da API.
 
 **Login com Google: adiado.** O código está pronto (botão e `/cadastro/google`), mas fica desligado enquanto `VITE_GOOGLE_CLIENT_ID` não estiver definido. Para ativar:
 1. Crie um client ID OAuth do tipo "Aplicativo da Web" no Google Cloud Console (gratuito), com `http://localhost:5173` e as origens de produção em "Origens JavaScript autorizadas".
