@@ -1,15 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { ResultadoTentativa } from '@/api/models';
+import type { AtividadeAluno, ResultadoTentativa, TentativaResumo } from '@/api/models';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { ProgressMeter } from '@/components/ui/Tag';
-import { Tag } from '@/components/ui/Tag';
+import { Chip, ProgressMeter, Tag } from '@/components/ui/Tag';
 import { useToast } from '@/components/ui/Toast';
 import { MuralComentarios } from '@/components/MuralComentarios';
-import { CheckCircle2, XCircle, ArrowLeft, ChevronDown, ChevronUp, Home } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, ChevronDown, ChevronUp, Home, Trophy, RotateCcw } from 'lucide-react';
 import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
+
+/** Escolhe a tentativa finalizada com mais acertos; em empate, vence a mais recente. */
+function encontrarMelhorTentativaId(tentativas: TentativaResumo[]): string | null {
+  if (tentativas.length === 0) return null;
+  let melhor = tentativas[0];
+  for (const atual of tentativas) {
+    const acertosAtual = atual.acertos ?? 0;
+    const acertosMelhor = melhor.acertos ?? 0;
+    if (acertosAtual > acertosMelhor) {
+      melhor = atual;
+    } else if (acertosAtual === acertosMelhor) {
+      const fimAtual = atual.finalizadaEm ? new Date(atual.finalizadaEm).getTime() : 0;
+      const fimMelhor = melhor.finalizadaEm ? new Date(melhor.finalizadaEm).getTime() : 0;
+      if (fimAtual > fimMelhor || (fimAtual === fimMelhor && atual.numero > melhor.numero)) {
+        melhor = atual;
+      }
+    }
+  }
+  return melhor.id;
+}
 
 export function AlunoResultadoPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,26 +36,61 @@ export function AlunoResultadoPage() {
   const { toast } = useToast();
 
   const [resultado, setResultado] = useState<ResultadoTentativa | null>(null);
+  const [historico, setHistorico] = useState<TentativaResumo[]>([]);
+  const [atividade, setAtividade] = useState<AtividadeAluno | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
   const [modalSinalizarAberto, setModalSinalizarAberto] = useState(false);
   const [questaoSinalizarId, setQuestaoSinalizarId] = useState<string | null>(null);
 
   useEffect(() => {
+    let ativo = true;
     async function carregar() {
       if (!id) return;
+      setCarregando(true);
+      setExpandidoId(null);
       try {
-        const dados = await api.aluno.obterResultadoTentativa(id);
+        const [dados, listaHistorico] = await Promise.all([
+          api.aluno.obterResultadoTentativa(id),
+          api.aluno.obterHistoricoTentativas().catch((): TentativaResumo[] => [])
+        ]);
+        if (!ativo) return;
         setResultado(dados);
+        setHistorico(listaHistorico);
+        api.aluno
+          .obterAtividadeDetalhe(dados.tentativa.atividadeId)
+          .then((detalhe) => {
+            if (ativo) setAtividade(detalhe);
+          })
+          .catch(() => {
+            if (ativo) setAtividade(null);
+          });
       } catch (err: any) {
+        if (!ativo) return;
         toast(err.mensagem || 'Erro ao carregar resultado.');
         navigate('/aluno');
       } finally {
-        setCarregando(false);
+        if (ativo) setCarregando(false);
       }
     }
     carregar();
+    return () => {
+      ativo = false;
+    };
   }, [id, navigate, toast]);
+
+  const atividadeIdAtual = resultado?.tentativa.atividadeId;
+  const tentativasAtividade = useMemo(
+    () =>
+      historico
+        .filter((t) => t.atividadeId === atividadeIdAtual && Boolean(t.finalizadaEm))
+        .sort((a, b) => a.numero - b.numero),
+    [historico, atividadeIdAtual]
+  );
+  const melhorTentativaId = useMemo(
+    () => atividade?.melhorTentativaId ?? encontrarMelhorTentativaId(tentativasAtividade),
+    [atividade?.melhorTentativaId, tentativasAtividade]
+  );
 
   if (carregando || !resultado) {
     return (
@@ -61,14 +115,24 @@ export function AlunoResultadoPage() {
           <ArrowLeft className="w-4 h-4" />
           Início
         </button>
-        <span className="text-xs font-bold text-ink">· Resultado</span>
+        <span className="text-xs font-bold text-ink truncate">
+          · {tentativa.titulo} · Resultado
+        </span>
       </div>
 
       {/* Hero do Resultado */}
       <Card color={percentual >= 60 ? 'green' : 'yellow'} className="p-6 text-center">
-        <span className="text-xs font-bold uppercase tracking-wider text-ink/80">
-          Tentativa Concluída
-        </span>
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <span className="text-xs font-bold uppercase tracking-wider text-ink/80">
+            Tentativa #{tentativa.numero} Concluída
+          </span>
+          {tentativasAtividade.length > 1 && tentativa.id === melhorTentativaId && (
+            <Tag color="paper" className="text-[10px] py-0 px-2 gap-1">
+              <Trophy className="w-3 h-3 text-orange" />
+              Melhor nota
+            </Tag>
+          )}
+        </div>
         <div className="text-5xl font-extrabold font-title text-ink my-2">
           {acertos}/{tentativa.total}
         </div>
@@ -76,13 +140,51 @@ export function AlunoResultadoPage() {
           {percentual >= 70
             ? 'Excelente desempenho!'
             : percentual >= 50
-            ? 'Bom trabalho! Continue praticando.'
-            : 'Foco nos pontos de melhoria!'}
+              ? 'Bom trabalho! Continue praticando.'
+              : 'Foco nos pontos de melhoria!'}
         </p>
         <p className="text-xs text-ink/80 mt-1">
           Tempo utilizado: <b>{tempoMinutos} min</b> · Nota: <b>{percentual}%</b>
         </p>
       </Card>
+
+      {/* Seletor de tentativas quando houver mais de uma concluída */}
+      {tentativasAtividade.length > 1 && (
+        <Card className="p-3.5 bg-paper flex flex-col gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted">
+            Suas tentativas ({tentativasAtividade.length})
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {tentativasAtividade.map((t) => {
+              const selecionada = t.id === tentativa.id;
+              const eMelhor = t.id === melhorTentativaId;
+              return (
+                <Chip
+                  key={t.id}
+                  active={selecionada}
+                  onClick={() => {
+                    if (!selecionada) {
+                      navigate(`/aluno/tentativa/${t.id}/resultado`, { replace: true });
+                    }
+                  }}
+                  className="text-xs px-3 py-1 inline-flex items-center gap-1.5"
+                >
+                  <span>#{t.numero}</span>
+                  <span className={selecionada ? 'text-paper/80' : 'text-muted'}>
+                    {t.acertos ?? 0}/{t.total}
+                  </span>
+                  {eMelhor && (
+                    <Trophy
+                      className={`w-3 h-3 ${selecionada ? 'text-yellow' : 'text-orange'}`}
+                      aria-label="Melhor tentativa"
+                    />
+                  )}
+                </Chip>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Desempenho por Tema */}
       {porTema && porTema.length > 0 && (
@@ -226,16 +328,29 @@ export function AlunoResultadoPage() {
       {/* Mural aberto à turma: a API só libera depois do envio da primeira tentativa */}
       <MuralComentarios key={tentativa.atividadeId} atividadeId={tentativa.atividadeId} papel="aluno" />
 
-      <Button
-        variant="primary"
-        size="lg"
-        fullWidth
-        onClick={() => navigate('/aluno')}
-        className="mt-2"
-      >
-        <Home className="w-4 h-4" />
-        Voltar ao início
-      </Button>
+      <div className="flex flex-col gap-2.5 mt-2">
+        {atividade?.podeIniciar && (
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => navigate(`/aluno/atividade/${tentativa.atividadeId}`)}
+          >
+            <RotateCcw className="w-4 h-4" />
+            {atividade.tentativaAbertaId ? 'Continuar tentativa em aberto' : 'Tentar novamente'}
+          </Button>
+        )}
+
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          onClick={() => navigate('/aluno')}
+        >
+          <Home className="w-4 h-4" />
+          Voltar ao início
+        </Button>
+      </div>
 
       {/* Modal de Sinalização com limite de tamanho */}
       <ModalSinalizarQuestao

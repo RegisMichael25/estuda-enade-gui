@@ -1566,6 +1566,8 @@ export interface components {
             tentativaAbertaId: string | null;
             /** Format: int32 */
             melhorAcertos: number | null;
+            /** Format: uuid */
+            melhorTentativaId: string | null;
             podeIniciar: boolean;
         };
         /** @description Estado de uma tentativa. O cronômetro é do servidor: calcule o tempo restante por `expiraEm - agora`. */

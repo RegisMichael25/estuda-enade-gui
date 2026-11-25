@@ -21,6 +21,7 @@ export function CampoSenha({
   autoComplete,
   error,
   mostrarRegras = false,
+  placeholder = autoComplete === 'new-password' ? 'Crie uma senha' : 'Digite sua senha',
   className,
   ...props
 }: CampoSenhaProps) {
@@ -40,6 +41,7 @@ export function CampoSenha({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
+          placeholder={placeholder}
           aria-invalid={!!error}
           aria-describedby={mostrarRegras ? idRegras : undefined}
           className={cn(

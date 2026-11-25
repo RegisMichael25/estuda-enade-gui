@@ -79,6 +79,7 @@ export function CamposNovaSenha({
         id="nova-senha-confirmacao"
         label="Confirme a senha"
         autoComplete="new-password"
+        placeholder="Repita a senha"
         value={confirmacao}
         onChange={aoMudarConfirmacao}
         error={erroConfirmacao}
