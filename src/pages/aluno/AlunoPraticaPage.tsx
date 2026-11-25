@@ -1,332 +1,121 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
-import type { QuestaoAluno, Gabarito } from '@/api/models';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
-import { Tag } from '@/components/ui/Tag';
-import { useToast } from '@/components/ui/Toast';
+import type { QuestaoAluno } from '@/api/models';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
-import { ArrowLeft, Flag, CheckCircle, XCircle, ArrowRight, BookOpen } from 'lucide-react';
-import { ModalSinalizarQuestao, BotaoSinalizar } from '@/components/ModalSinalizarQuestao';
+import { useToast } from '@/components/ui/Toast';
+import { History } from 'lucide-react';
+import { Cabecalho } from './pratica/Cabecalho';
+import { EtapaConteudo } from './pratica/EtapaConteudo';
+import { EtapaQuestoes } from './pratica/EtapaQuestoes';
+import { EtapaRevisao } from './pratica/EtapaRevisao';
+import { carregarEstado, salvarEstado, type EstadoMontagem } from './pratica/estado';
 
+/**
+ * Prática livre: o aluno monta a própria prova (escolhendo à mão, sorteando ou os dois). Ao começar, a
+ * prova é salva e aberta em /aluno/provas/:id. É só dele: nada vai para a turma do professor.
+ */
 export function AlunoPraticaPage() {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const confirmar = useConfirmacao();
+  const { toast } = useToast();
+  const [estado, setEstado] = useState<EstadoMontagem>(carregarEstado);
+  const [criando, setCriando] = useState(false);
 
-  // Estados dos filtros
-  const [filtro, setFiltro] = useState<ValorFiltroQuestoes>(filtroVazio());
-
-  // Estados da prática
-  const [emPratica, setEmPratica] = useState(false);
-  const [questoes, setQuestoes] = useState<QuestaoAluno[]>([]);
-  const [indiceAtual, setIndiceAtual] = useState(0);
-  const [totalQuestoes, setTotalQuestoes] = useState(0);
-  const [alternativaSelecionada, setAlternativaSelecionada] = useState<string | null>(null);
-  const [respondido, setRespondido] = useState(false);
-  const [gabarito, setGabarito] = useState<Gabarito | null>(null);
-  const [respondendo, setRespondendo] = useState(false);
-
-  // Modal de sinalização
-  const [modalSinalizarAberto, setModalSinalizarAberto] = useState(false);
-
-  // Atualizar contagem prévia de questões encontradas
   useEffect(() => {
-    async function contarQuestoes() {
-      if (!filtro.cursoId) {
-        setTotalQuestoes(0);
-        return;
-      }
-      try {
-        const res = await api.aluno.obterQuestoesPratica({
-          cursoId: filtro.cursoId,
-          ano: filtro.ano ?? undefined,
-          busca: filtro.busca || undefined,
-          temaId: filtro.temaId ?? undefined,
-          tamanho: 1
-        });
-        setTotalQuestoes(res.total);
-      } catch (err) {
-        console.error('Erro ao contar questões:', err);
-      }
-    }
-    contarQuestoes();
-  }, [filtro]);
+    salvarEstado(estado);
+  }, [estado]);
 
-  async function handleIniciarPratica() {
-    try {
-      const res = await api.aluno.obterQuestoesPratica({
-        cursoId: filtro.cursoId,
-        ano: filtro.ano ?? undefined,
-        busca: filtro.busca || undefined,
-        temaId: filtro.temaId ?? undefined,
-        tamanho: 50
-      });
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [estado.fase]);
 
-      if (res.itens.length === 0) {
-        toast('Nenhuma questão encontrada com esses filtros.');
-        return;
-      }
-
-      setQuestoes(res.itens);
-      setIndiceAtual(0);
-      setAlternativaSelecionada(null);
-      setRespondido(false);
-      setGabarito(null);
-      setEmPratica(true);
-    } catch (err) {
-      toast('Não foi possível carregar as questões.');
-    }
+  function atualizar(parcial: Partial<EstadoMontagem>) {
+    setEstado((e) => ({ ...e, ...parcial }));
   }
 
-  async function handleResponder() {
-    if (!alternativaSelecionada || !questoes[indiceAtual]) {
-      toast('Selecione uma alternativa.');
-      return;
-    }
-
-    setRespondendo(true);
+  /** Salva a prova no servidor e abre a resolução. A montagem recomeça vazia, mantendo o conteúdo. */
+  async function comecar(prova: QuestaoAluno[], nome?: string) {
+    if (prova.length === 0 || criando) return;
+    setCriando(true);
     try {
-      const q = questoes[indiceAtual];
-      const resultado = await api.aluno.responderPratica(q.id, alternativaSelecionada);
-      setGabarito(resultado);
-      setRespondido(true);
+      const criada = await api.aluno.criarProva(prova.map((q) => q.id), nome);
+      setEstado((e) => ({ ...e, prova: [], fase: 'conteudo' }));
+      navigate(`/aluno/provas/${criada.prova.id}`);
     } catch (err: any) {
-      toast(err.mensagem || 'Erro ao registrar resposta.');
+      toast(err.mensagem || 'Não foi possível salvar a prova.');
     } finally {
-      setRespondendo(false);
+      setCriando(false);
     }
   }
 
-  async function handleSairDaPratica() {
-    // Só pergunta se já houve progresso na sessão.
-    if (indiceAtual > 0 || respondido) {
+  async function mudarConteudo(parcial: Partial<Pick<EstadoMontagem, 'cursoId' | 'temaIds' | 'anos' | 'historico'>>) {
+    // Trocar de curso desfaz a prova: as questões escolhidas são do outro curso
+    if (parcial.cursoId !== undefined && parcial.cursoId !== estado.cursoId && estado.prova.length > 0) {
       const ok = await confirmar({
-        titulo: 'Voltar para os filtros?',
-        mensagem: `Você está na questão ${indiceAtual + 1} de ${questoes.length}. As respostas já dadas ficam salvas, mas esta sequência recomeça do início.`,
-        rotuloConfirmar: 'Voltar aos filtros',
-        rotuloCancelar: 'Continuar praticando',
+        titulo: 'Trocar de curso?',
+        mensagem: `As ${estado.prova.length} questões já escolhidas saem da prova.`,
+        rotuloConfirmar: 'Trocar de curso',
+        rotuloCancelar: 'Manter',
       });
       if (!ok) return;
+      atualizar({ ...parcial, prova: [] });
+      return;
     }
-    setEmPratica(false);
+    atualizar(parcial);
   }
 
-  function handleProximaQuestao() {
-    if (indiceAtual + 1 < questoes.length) {
-      setIndiceAtual((i) => i + 1);
-      setAlternativaSelecionada(null);
-      setRespondido(false);
-      setGabarito(null);
-    } else {
-      toast('Você concluiu todas as questões deste filtro!');
-      setEmPratica(false);
-    }
-  }
+  const linkHistorico = (
+    <Link to="/aluno/provas" className="text-xs font-bold text-ink hover:text-orange flex items-center gap-1">
+      <History className="w-3.5 h-3.5" />
+      Minhas provas
+    </Link>
+  );
 
-  const qAtual = questoes[indiceAtual];
-
-  // ================= TELA DE RESOLUÇÃO =================
-  if (emPratica && qAtual) {
+  if (estado.fase === 'revisao') {
     return (
-      <div className="flex flex-col gap-4">
-        {/* Topo com navegação e tags */}
-        <div className="flex items-center justify-between pb-2 border-b-2 border-ink">
-          <button
-            onClick={handleSairDaPratica}
-            className="text-xs font-bold text-muted hover:text-ink flex items-center gap-1 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Filtros
-          </button>
-
-          <span className="text-xs font-bold text-ink">
-            {indiceAtual + 1} de {questoes.length}
-          </span>
-
-          <Tag color="blue">{qAtual.tema.nome}</Tag>
-        </div>
-
-        {/* Metadados da questão + Botão singelo de sinalização na questão */}
-        <div className="flex items-center justify-between text-xs font-bold text-muted">
-          <span>ENADE {qAtual.ano} · {qAtual.curso.nome}</span>
-          <BotaoSinalizar
-            onClick={() => setModalSinalizarAberto(true)}
-            title="Sinalizar problema nesta questão"
-          />
-        </div>
-
-        {/* Enunciado da questão */}
-        <Card className="p-4 bg-paper">
-          <p className="text-sm font-medium text-ink leading-relaxed whitespace-pre-wrap">
-            {qAtual.enunciado}
-          </p>
-        </Card>
-
-        {/* Lista de Alternativas */}
-        <div className="flex flex-col gap-2.5">
-          {qAtual.alternativas.map((alt, idx) => {
-            const letra = String.fromCharCode(65 + idx);
-            const selecionada = alternativaSelecionada === alt.id;
-            const eCorreta = gabarito && gabarito.alternativaCorretaId === alt.id;
-            const eIncorreta = respondido && selecionada && !gabarito?.acertou;
-
-            let estilo = 'bg-paper text-ink hover:bg-bg';
-            if (selecionada && !respondido) {
-              estilo = 'bg-yellow shadow-brutal-sm';
-            }
-            if (eCorreta) {
-              estilo = 'bg-green text-ink shadow-brutal-sm font-bold';
-            } else if (eIncorreta) {
-              estilo = 'bg-pink text-ink line-through opacity-80';
-            }
-
-            return (
-              <button
-                key={alt.id}
-                type="button"
-                disabled={respondido}
-                onClick={() => setAlternativaSelecionada(alt.id)}
-                className={`w-full text-left p-3 rounded-xl border-[2.5px] border-ink flex items-start gap-3 transition-all cursor-pointer ${estilo}`}
-              >
-                <span className="w-6 h-6 rounded-lg border-2 border-ink bg-paper flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
-                  {letra}
-                </span>
-                <span className="text-xs font-medium leading-snug flex-1">
-                  {alt.texto}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Botão Responder */}
-        {!respondido && (
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            carregando={respondendo}
-            onClick={handleResponder}
-          >
-            Responder
-          </Button>
-        )}
-
-        {/* Card de Feedback Imediato */}
-        {respondido && gabarito && (
-          <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <Card
-              color={gabarito.acertou ? 'green' : 'pink'}
-              className="p-4"
-            >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <div className="flex items-center gap-2">
-                  {gabarito.acertou ? (
-                    <CheckCircle className="w-5 h-5 text-ink flex-none" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-ink flex-none" />
-                  )}
-                  <h4 className="font-bold text-sm font-title text-ink">
-                    {gabarito.acertou ? 'Você acertou!' : 'Resposta incorreta'} · Gabarito: Letra {gabarito.letraCorreta}
-                  </h4>
-                </div>
-                <BotaoSinalizar
-                  onClick={() => setModalSinalizarAberto(true)}
-                  title="Sinalizar problema no gabarito ou justificativa"
-                  variante="pill"
-                />
-              </div>
-
-              {gabarito.explicacao && (
-                <p className="text-xs text-ink/90 leading-relaxed mt-2 pt-2 border-t border-ink/20">
-                  <b>Justificativa:</b> {gabarito.explicacao}
-                </p>
-              )}
-            </Card>
-
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => setModalSinalizarAberto(true)}
-                className="flex-1"
-              >
-                <Flag className="w-4 h-4 text-orange" />
-                Sinalizar
-              </Button>
-
-              <Button
-                variant="primary"
-                size="md"
-                onClick={handleProximaQuestao}
-                className="flex-1"
-              >
-                Próxima
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Modal de Sinalização com limite de tamanho */}
-        <ModalSinalizarQuestao
-          aberto={modalSinalizarAberto}
-          aoFechar={() => setModalSinalizarAberto(false)}
-          questaoId={qAtual.id}
-          papel="aluno"
+      <div className="flex flex-col gap-4 max-w-3xl">
+        <Cabecalho rotuloVoltar="Questões" aoVoltar={() => atualizar({ fase: 'questoes' })} passo={2} direita={linkHistorico} />
+        <EtapaRevisao
+          prova={estado.prova}
+          aoMudarProva={(p) => atualizar({ prova: p })}
+          aoAdicionarMais={() => atualizar({ fase: 'questoes' })}
+          aoComecar={() => comecar(estado.prova)}
+          comecando={criando}
         />
       </div>
     );
   }
 
-  // ================= TELA DE FILTROS =================
+  if (estado.fase === 'questoes' && estado.cursoId) {
+    return (
+      <div className="flex flex-col gap-4 max-w-3xl">
+        <Cabecalho rotuloVoltar="Conteúdo" aoVoltar={() => atualizar({ fase: 'conteudo' })} passo={1} direita={linkHistorico} />
+        <EtapaQuestoes
+          cursoId={estado.cursoId}
+          temaIds={estado.temaIds}
+          anos={estado.anos}
+          historico={estado.historico}
+          prova={estado.prova}
+          aoMudarProva={(p) => atualizar({ prova: p })}
+          aoRevisar={() => atualizar({ fase: 'revisao' })}
+          aoComecar={comecar}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 pb-2 border-b-2 border-ink">
-        <button
-          onClick={() => navigate('/aluno')}
-          className="text-xs font-bold text-muted hover:text-ink flex items-center gap-1 cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Início
-        </button>
-        <span className="text-xs font-bold text-ink">· Prática Livre</span>
-      </div>
-
-      <div>
-        <h2 className="text-xl font-bold font-title">Banco de Prática</h2>
-        <p className="text-xs text-muted">
-          Escolha os filtros pedagógicos para praticar com feedback imediato.
-        </p>
-      </div>
-
-      <FiltroQuestoes valor={filtro} aoMudar={setFiltro} obterAnos={api.aluno.obterAnosPratica} layout="compacto" />
-
-      {/* Card de Contagem de Questões */}
-      {filtro.cursoId && (
-        <Card color="yellow" className="p-3.5 mt-2 flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-ink/80 block">Disponíveis</span>
-            <span className="text-lg font-title font-extrabold text-ink">
-              {totalQuestoes} questões encontradas
-            </span>
-          </div>
-          <BookOpen className="w-6 h-6 text-ink/70" />
-        </Card>
-      )}
-
-      <Button
-        variant="primary"
-        size="lg"
-        fullWidth
-        disabled={!filtro.cursoId || totalQuestoes === 0}
-        onClick={handleIniciarPratica}
-      >
-        Começar a praticar
-      </Button>
+    <div className="flex flex-col gap-4 max-w-3xl">
+      <Cabecalho rotuloVoltar="Início" aoVoltar={() => navigate('/aluno')} passo={0} direita={linkHistorico} />
+      <EtapaConteudo
+        cursoId={estado.cursoId}
+        temaIds={estado.temaIds}
+        anos={estado.anos}
+        historico={estado.historico}
+        aoMudar={mudarConteudo}
+        aoAvancar={() => atualizar({ fase: 'questoes' })}
+      />
     </div>
   );
 }

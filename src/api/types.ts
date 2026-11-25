@@ -1123,6 +1123,165 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/aluno/pratica/contagem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Quantas questões há em cada tema do curso, para montar a prova
+         * @description Só temas com pelo menos uma questão disponível (mesmas regras e filtros da listagem), em ordem alfabética. Traz também o desempenho do aluno no tema, para destacar os temas fracos.
+         */
+        get: operations["contagemDaPratica"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/pratica/sortear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sorteia questões para a prova montada pelo aluno, sem gabarito
+         * @description Mesmas regras da listagem. Pode devolver menos que o pedido se não houver questões suficientes.
+         */
+        post: operations["sortearPratica"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/provas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Provas que o aluno montou, da mais recente à mais antiga */
+        get: operations["minhasProvas"];
+        put?: never;
+        /**
+         * Salva a prova montada e começa a praticar
+         * @description Todas as questões precisam ser do mesmo curso e estar disponíveis na prática livre. A prova é só do aluno: não vai para a turma.
+         */
+        post: operations["criarProva"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/provas/{provaId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Prova do aluno, com as respostas já dadas
+         * @description O gabarito só vem nas questões já respondidas e que continuam disponíveis na prática livre.
+         */
+        get: operations["detalharProva"];
+        put?: never;
+        post?: never;
+        /**
+         * Tira a prova do histórico
+         * @description As respostas continuam contando no desempenho do aluno.
+         */
+        delete: operations["excluirProva"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/provas/{provaId}/questoes/{questaoId}/responder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Responde uma questão da prova e recebe gabarito e explicação */
+        post: operations["responderNaProva"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/provas/{provaId}/concluir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Conclui a prova; questões sem resposta contam como não acertadas */
+        post: operations["concluirProva"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/provas/{provaId}/refazer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nova prova com as mesmas questões, sem respostas
+         * @description Ficam de fora as questões que deixaram de estar disponíveis na prática livre.
+         */
+        post: operations["refazerProva"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/aluno/provas/{provaId}/erradas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nova prova só com as questões erradas ou sem resposta
+         * @description Ficam de fora as questões que deixaram de estar disponíveis na prática livre.
+         */
+        post: operations["provaComErradas"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1776,6 +1935,78 @@ export interface components {
             podeComentar: boolean;
             comentarios: components["schemas"]["ComentarioResponse"][];
         };
+        /** @description Tema, quantas questões dele estão disponíveis e o desempenho do aluno nele (todas as respostas já corrigidas). */
+        ContagemTemaResponse: {
+            tema: components["schemas"]["ItemResponse"];
+            /** Format: int64 */
+            total: number;
+            /**
+             * Format: int64
+             * @description Respostas do aluno no tema.
+             */
+            respondidas: number;
+            /** Format: int64 */
+            acertos: number;
+        };
+        SortearPraticaRequest: {
+            /** Format: uuid */
+            cursoId: string;
+            /** @description Vazio sorteia entre todos os temas do curso. */
+            temaIds?: string[];
+            /** @description Vazio não filtra por ano. */
+            anos?: number[];
+            /** Format: int32 */
+            quantidade: number;
+            /** @description Questões que já estão na prova e não devem ser sorteadas de novo. */
+            excluirIds?: string[];
+            /** @description Nulo vale `TODAS`. */
+            historico?: components["schemas"]["HistoricoPratica"] | null;
+            /** @description Distribui as questões igualmente entre os temas (atalho Simulado ENADE). Nulo ou falso sorteia sem distribuir. */
+            equilibrar?: boolean | null;
+        };
+        CriarProvaPessoalRequest: {
+            /** @description Na ordem em que serão respondidas. */
+            questaoIds: string[];
+            /** @description Vazio gera o nome a partir dos temas. */
+            nome?: string | null;
+        };
+        /** @description Prova montada pelo aluno, para o histórico. */
+        ProvaPessoalResumoResponse: {
+            /** Format: uuid */
+            id: string;
+            nome: string;
+            curso: components["schemas"]["ItemResponse"];
+            /** @description Nomes dos temas, na ordem em que aparecem na prova. */
+            temas: string[];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            respondidas: number;
+            /** Format: int32 */
+            acertos: number;
+            /** Format: date-time */
+            criadaEm: string;
+            /** Format: date-time */
+            concluidaEm: string | null;
+        };
+        QuestaoDaProvaResponse: {
+            /** Format: int32 */
+            ordem: number;
+            questao: components["schemas"]["QuestaoAlunoResponse"];
+            /** @description Falso se a questão foi ocultada ou entrou em uma atividade que o aluno ainda não concluiu: não pode ser respondida e não mostra gabarito. */
+            disponivel: boolean;
+            /** @description Só nas questões já respondidas e disponíveis. */
+            gabarito: components["schemas"]["GabaritoResponse"] | null;
+        };
+        ProvaPessoalResponse: {
+            prova: components["schemas"]["ProvaPessoalResumoResponse"];
+            questoes: components["schemas"]["QuestaoDaProvaResponse"][];
+        };
+        /**
+         * @description Filtro pelo histórico do aluno (prática e atividades já enviadas). `ERRADAS`: a última resposta dele à questão foi errada.
+         * @enum {string}
+         */
+        HistoricoPratica: "TODAS" | "NAO_RESPONDIDAS" | "ERRADAS";
     };
     responses: {
         /** @description Erro no formato padrão da API. */
@@ -4693,8 +4924,12 @@ export interface operations {
         parameters: {
             query?: {
                 cursoId?: string;
-                temaId?: string;
-                ano?: number;
+                /** @description Repita o parâmetro para vários temas (`temaId=a&temaId=b`). */
+                temaId?: string[];
+                /** @description Repita o parâmetro para vários anos (`ano=2021&ano=2023`). */
+                ano?: number[];
+                /** @description Padrão: `TODAS`. */
+                historico?: components["schemas"]["HistoricoPratica"];
                 /** @description Trecho do enunciado. Ignora maiúsculas e acentos. */
                 busca?: string;
                 /** @description Começa em 0. */
@@ -4846,6 +5081,443 @@ export interface operations {
             };
             /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    contagemDaPratica: {
+        parameters: {
+            query: {
+                cursoId: string;
+                /** @description Repita o parâmetro para vários anos. */
+                ano?: number[];
+                /** @description Padrão: `TODAS`. */
+                historico?: components["schemas"]["HistoricoPratica"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContagemTemaResponse"][];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    sortearPratica: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SortearPraticaRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestaoAlunoResponse"][];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    minhasProvas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvaPessoalResumoResponse"][];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    criarProva: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CriarProvaPessoalRequest"];
+            };
+        };
+        responses: {
+            /** @description Criada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvaPessoalResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    detalharProva: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvaPessoalResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    excluirProva: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sem conteúdo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    responderNaProva: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provaId: string;
+                questaoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResponderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GabaritoResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    concluirProva: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvaPessoalResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    refazerProva: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Criada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvaPessoalResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            default: components["responses"]["Erro"];
+        };
+    };
+    provaComErradas: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Criada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvaPessoalResponse"];
+                };
+            };
+            /** @description Sem acesso (`ACESSO_NEGADO`) ou professor aguardando aprovação (`CADASTRO_PENDENTE`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Não encontrado, ou pertence a outro usuário. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErroResponse"];
+                };
+            };
+            /** @description Regra de negócio violada; veja `codigo`. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -2,7 +2,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
 import { useState } from 'react';
-import { Home, Play, BarChart2, Users, LogOut } from 'lucide-react';
+import { Home, Play, BarChart2, Users, LogOut, History } from 'lucide-react';
 import { ModalSenha, BotaoSenha } from '@/components/auth/ModalSenha';
 import { AvisoSemSenha } from '@/components/auth/AvisoSemSenha';
 import type { LucideIcon } from 'lucide-react';
@@ -10,6 +10,7 @@ import type { LucideIcon } from 'lucide-react';
 const LINKS: { to: string; rotulo: string; icone: LucideIcon; end?: boolean }[] = [
   { to: '/aluno', rotulo: 'Início', icone: Home, end: true },
   { to: '/aluno/pratica', rotulo: 'Praticar', icone: Play },
+  { to: '/aluno/provas', rotulo: 'Minhas provas', icone: History },
   { to: '/aluno/desempenho', rotulo: 'Desempenho', icone: BarChart2 },
   { to: '/aluno/turmas', rotulo: 'Turmas', icone: Users }
 ];
@@ -142,7 +143,7 @@ export function AlunoLayout() {
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex-1 py-1.5 px-2 rounded-xl border-2 flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${
+                `flex-1 py-1.5 px-1 rounded-xl border-2 flex flex-col items-center gap-1 text-[11px] leading-tight text-center font-bold transition-all ${
                   isActive
                     ? 'bg-yellow border-ink shadow-brutal-sm text-ink'
                     : 'border-transparent text-muted hover:text-ink'

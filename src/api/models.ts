@@ -47,6 +47,11 @@ export type TentativaResumo = Schemas['TentativaResumoResponse'];
 export type ResultadoTentativa = Schemas['ResultadoTentativaResponse'];
 export type QuestaoCorrigida = Schemas['QuestaoCorrigidaResponse'];
 export type Gabarito = Schemas['GabaritoResponse'];
+export type ContagemTema = Schemas['ContagemTemaResponse'];
+export type HistoricoPratica = Schemas['HistoricoPratica'];
+export type ProvaPessoal = Schemas['ProvaPessoalResponse'];
+export type ProvaPessoalResumo = Schemas['ProvaPessoalResumoResponse'];
+export type QuestaoDaProva = Schemas['QuestaoDaProvaResponse'];
 
 export type DesempenhoAluno = Schemas['DesempenhoAlunoResponse'];
 export type TemaDesempenho = Schemas['TemaDesempenho'];

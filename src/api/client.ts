@@ -20,6 +20,11 @@ import type {
   ResultadoTentativa,
   DesempenhoAluno,
   Gabarito,
+  ContagemTema,
+  HistoricoPratica,
+  ProvaPessoal,
+  ProvaPessoalResumo,
+  QuestaoAluno,
   ResultadosAtividade,
   Sinalizacao,
   Convite,
@@ -370,21 +375,90 @@ export const api = {
 
     obterQuestoesPratica(params?: {
       cursoId?: string;
-      temaId?: string;
-      ano?: number;
+      /** Vários temas: a API recebe `temaId` repetido. */
+      temaIds?: string[];
+      /** Vários anos: a API recebe `ano` repetido. */
+      anos?: number[];
+      historico?: HistoricoPratica;
       busca?: string;
       pagina?: number;
       tamanho?: number;
     }): Promise<PaginaQuestaoAluno> {
       const sp = new URLSearchParams();
       if (params?.cursoId) sp.set('cursoId', params.cursoId);
-      if (params?.temaId) sp.set('temaId', params.temaId);
-      if (params?.ano) sp.set('ano', String(params.ano));
+      params?.temaIds?.forEach((t) => sp.append('temaId', t));
+      params?.anos?.forEach((a) => sp.append('ano', String(a)));
+      if (params?.historico && params.historico !== 'TODAS') sp.set('historico', params.historico);
       if (params?.busca) sp.set('busca', params.busca);
       if (params?.pagina !== undefined) sp.set('pagina', String(params.pagina));
       if (params?.tamanho !== undefined) sp.set('tamanho', String(params.tamanho));
       const qs = sp.toString() ? `?${sp.toString()}` : '';
       return request<PaginaQuestaoAluno>(`/aluno/pratica/questoes${qs}`);
+    },
+
+    /** Quantas questões há em cada tema do curso (só temas com questão), com o desempenho do aluno no tema. */
+    obterContagemPratica(cursoId: string, anos: number[] = [], historico: HistoricoPratica = 'TODAS'): Promise<ContagemTema[]> {
+      const sp = new URLSearchParams({ cursoId });
+      anos.forEach((a) => sp.append('ano', String(a)));
+      if (historico !== 'TODAS') sp.set('historico', historico);
+      return request<ContagemTema[]>(`/aluno/pratica/contagem?${sp.toString()}`);
+    },
+
+    /** Sorteia questões para a prova do aluno, sem repetir as de `excluirIds`. */
+    sortearPratica(params: {
+      cursoId: string;
+      temaIds: string[];
+      anos: number[];
+      historico?: HistoricoPratica;
+      /** Reparte a quantidade igualmente entre os temas (Simulado ENADE). */
+      equilibrar?: boolean;
+      quantidade: number;
+      excluirIds: string[];
+    }): Promise<QuestaoAluno[]> {
+      return request<QuestaoAluno[]>('/aluno/pratica/sortear', {
+        method: 'POST',
+        body: JSON.stringify(params)
+      });
+    },
+
+    // ---------- provas montadas pelo aluno (só dele, fora da turma) ----------
+
+    listarProvas(): Promise<ProvaPessoalResumo[]> {
+      return request<ProvaPessoalResumo[]>('/aluno/provas');
+    },
+
+    criarProva(questaoIds: string[], nome?: string): Promise<ProvaPessoal> {
+      return request<ProvaPessoal>('/aluno/provas', {
+        method: 'POST',
+        body: JSON.stringify({ questaoIds, nome: nome || null })
+      });
+    },
+
+    obterProva(provaId: string): Promise<ProvaPessoal> {
+      return request<ProvaPessoal>(`/aluno/provas/${provaId}`);
+    },
+
+    excluirProva(provaId: string): Promise<void> {
+      return request<void>(`/aluno/provas/${provaId}`, { method: 'DELETE' });
+    },
+
+    responderNaProva(provaId: string, questaoId: string, alternativaId: string): Promise<Gabarito> {
+      return request<Gabarito>(`/aluno/provas/${provaId}/questoes/${questaoId}/responder`, {
+        method: 'POST',
+        body: JSON.stringify({ alternativaId })
+      });
+    },
+
+    concluirProva(provaId: string): Promise<ProvaPessoal> {
+      return request<ProvaPessoal>(`/aluno/provas/${provaId}/concluir`, { method: 'POST' });
+    },
+
+    refazerProva(provaId: string): Promise<ProvaPessoal> {
+      return request<ProvaPessoal>(`/aluno/provas/${provaId}/refazer`, { method: 'POST' });
+    },
+
+    provaComErradas(provaId: string): Promise<ProvaPessoal> {
+      return request<ProvaPessoal>(`/aluno/provas/${provaId}/erradas`, { method: 'POST' });
     },
 
     responderPratica(questaoId: string, alternativaId: string): Promise<Gabarito> {

@@ -19,6 +19,8 @@ import { CadastroPendentePage } from '@/pages/auth/CadastroPendentePage';
 // Aluno Pages
 import { AlunoInicioPage } from '@/pages/aluno/AlunoInicioPage';
 import { AlunoPraticaPage } from '@/pages/aluno/AlunoPraticaPage';
+import { AlunoProvasPage } from '@/pages/aluno/AlunoProvasPage';
+import { AlunoProvaPage } from '@/pages/aluno/AlunoProvaPage';
 import { AlunoAtividadeDetalhePage } from '@/pages/aluno/AlunoAtividadeDetalhePage';
 import { AlunoTentativaPage } from '@/pages/aluno/AlunoTentativaPage';
 import { AlunoResultadoPage } from '@/pages/aluno/AlunoResultadoPage';
@@ -85,6 +87,8 @@ export function App() {
                   <Route path="/aluno" element={<AlunoLayout />}>
                     <Route index element={<AlunoInicioPage />} />
                     <Route path="pratica" element={<AlunoPraticaPage />} />
+                    <Route path="provas" element={<AlunoProvasPage />} />
+                    <Route path="provas/:provaId" element={<AlunoProvaPage />} />
                     <Route path="atividade/:id" element={<AlunoAtividadeDetalhePage />} />
                     <Route path="tentativa/:id" element={<AlunoTentativaPage />} />
                     <Route path="tentativa/:id/resultado" element={<AlunoResultadoPage />} />

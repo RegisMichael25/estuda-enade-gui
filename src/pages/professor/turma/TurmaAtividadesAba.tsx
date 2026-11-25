@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/Input';
 import { Combobox } from '@/components/ui/Combobox';
 import { Tag } from '@/components/ui/Tag';
 import { Modal } from '@/components/ui/Modal';
+import { ItemQuestaoSelecionavel } from '@/components/ItemQuestaoSelecionavel';
 import { FiltroQuestoes, filtroVazio, type ValorFiltroQuestoes } from '@/components/FiltroQuestoes';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirmacao } from '@/components/ui/Confirmacao';
@@ -606,38 +607,14 @@ export function TurmaAtividadesAba() {
                   Nenhuma questão publicada com esses filtros.
                 </p>
               ) : (
-                todasQuestoesExibidas.map((q) => {
-                  const marcada = questoesSelecionadas.includes(q.id);
-
-                  return (
-                    <div
-                      key={q.id}
-                      onClick={() => alternarSelecaoQuestao(q.id)}
-                      className={`p-2.5 rounded-xl border-2 flex items-start gap-2.5 cursor-pointer transition-all ${marcada ? 'bg-yellow/30 border-ink shadow-brutal-sm' : 'bg-paper border-ink/40'
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={marcada}
-                        onChange={() => { }}
-                        className="w-4 h-4 accent-orange mt-0.5"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Tag color="blue" className="text-[10px] py-0">
-                            {q.tema.nome}
-                          </Tag>
-                          <span className="text-[11px] font-bold text-muted">
-                            ENADE {q.ano}
-                          </span>
-                        </div>
-                        <p className="text-xs font-medium text-ink line-clamp-2">
-                          {q.enunciado}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
+                todasQuestoesExibidas.map((q) => (
+                  <ItemQuestaoSelecionavel
+                    key={q.id}
+                    questao={q}
+                    marcada={questoesSelecionadas.includes(q.id)}
+                    aoAlternar={() => alternarSelecaoQuestao(q.id)}
+                  />
+                ))
               )}
             </div>
           </div>
